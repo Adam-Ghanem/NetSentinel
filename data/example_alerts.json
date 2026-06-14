@@ -1,0 +1,35 @@
+[
+  {
+    "alert_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    "timestamp": "2023-10-27T10:00:01.123456",
+    "source_ip": "192.168.1.10",
+    "dest_ip": "1.2.3.4",
+    "alert_type": "Port Scan Detection",
+    "severity": "High",
+    "description": "Multiple SYN packets to different destination ports from 192.168.1.10 within a short period.",
+    "recommended_action": "Investigate source IP 192.168.1.10 for malicious scanning activity. Consider blocking the source IP.",
+    "mitre_attack": "T1046"
+  },
+  {
+    "alert_id": "f0e9d8c7-b6a5-4321-fedc-ba9876543210",
+    "timestamp": "2023-10-27T10:00:03.456789",
+    "source_ip": "192.168.1.1",
+    "dest_ip": "192.168.1.10",
+    "alert_type": "ARP Spoofing Suspicion",
+    "severity": "Critical",
+    "description": "ARP response from 192.168.1.1 with a MAC address that does not match known records for this IP.",
+    "recommended_action": "Isolate the suspected host 192.168.1.1. Verify ARP tables. Implement static ARP entries.",
+    "mitre_attack": "T1557.001"
+  },
+  {
+    "alert_id": "1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+    "timestamp": "2023-10-27T10:00:00.123456",
+    "source_ip": "192.168.1.10",
+    "dest_ip": "8.8.8.8",
+    "alert_type": "DNS Flood / Abnormal DNS Request Volume",
+    "severity": "High",
+    "description": "Unusually high volume of DNS queries from 192.168.1.10 to 8.8.8.8 within a short period.",
+    "recommended_action": "Investigate the source host 192.168.1.10 for malware or misconfiguration. Implement DNS rate limiting.",
+    "mitre_attack": "T1071.004"
+  }
+]

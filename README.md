@@ -135,24 +135,3 @@ NetSentinel/
 *   **Only analyze packet headers and metadata.**
 *   **Warning**: This tool must only be used on networks owned by the user or where explicit permission exists. Unauthorized network monitoring is illegal and unethical.
 
-## CV Description Bullet Points
-
-*   Developed **NetSentinel**, a Python-based Network Packet Sniffer, Traffic Analyzer, and Mini NDR platform, enhancing network visibility and threat detection capabilities for educational and SOC environments.
-*   Implemented **live packet sniffing** with Scapy, comprehensive **packet metadata extraction**, and **offline PCAP analysis** to support in-depth network forensics.
-*   Designed and integrated a **YAML-driven detection engine** capable of identifying port scans, ARP spoofing, DNS floods, and beaconing behavior, generating alerts with MITRE ATT&CK mapping.
-*   Built an interactive **Streamlit dashboard** featuring role-based access, real-time packet display, protocol distribution, top talkers, alert management, and PDF report generation.
-*   Incorporated **IOC enrichment** with optional AbuseIPDB/VirusTotal integration and **Zeek-like connection logging** for advanced network flow analysis and threat intelligence.
-
-## LinkedIn Project Post
-
-"Excited to share my latest cybersecurity portfolio project: **NetSentinel – Network Packet Sniffer, Traffic Analyzer & Mini NDR Platform**! 🚀
-
-NetSentinel is a comprehensive Python-based tool designed for defensive network monitoring and analysis. It leverages Scapy for live packet sniffing, extracts rich metadata, and features a robust detection engine to identify suspicious activities like port scans, ARP spoofing, and DNS floods. Alerts are generated with MITRE ATT&CK mapping for actionable insights.
-
-The project also includes an interactive Streamlit dashboard with role-based access, real-time traffic visualizations, IOC enrichment capabilities (with optional AbuseIPDB/VirusTotal integration), and a full case management system. Plus, it generates professional PDF security reports!
-
-This was an incredible journey in combining network engineering, security analysis, and Python development. It's built for educational purposes, SOC practice, and as a strong portfolio piece to showcase practical skills in network security and incident response.
-
-Check out the repository (link in comments) to see the modular architecture, YAML-driven rules, and how it all comes together to provide deep network visibility. Special thanks to the open-source community for tools like Scapy, Streamlit, and ReportLab that made this possible!
-
-#Cybersecurity #NetworkSecurity #Python #Scapy #Streamlit #SOC #NDR #InfoSec #PortfolioProject #ThreatDetection #IncidentResponse #MITREATTACK"

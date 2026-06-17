@@ -13,3 +13,4 @@ cryptography
 pydantic-settings
 networkx
 pyvis
+scikit-learn

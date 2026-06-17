@@ -1,12 +1,24 @@
 <p align="center">
-  <img src="assets/banner_realistic.png" alt="NetSentinel Banner" width="100%">
+  <img src="assets/banner_elite.png" alt="NetSentinel Banner" width="100%">
 </p>
 
 # <img src="assets/logo.png" width="48" height="48" valign="middle"> NetSentinel: Cyber Ops NDR & Forensic Platform
 
 NetSentinel is a professional-grade, "mferge3" (explosive) Network Detection and Response (NDR) platform designed for senior cybersecurity engineers and pentesters. It combines deep packet inspection (DPI), advanced traffic pattern analysis, and automated security orchestration (SOAR) into a high-tech "Cyber Ops" command center.
 
-## 🚀 Key "Mferge3" Features
+## 🚀 Elite Enterprise Features (5+ Years Exp Architecture)
+
+### 🌪️ Async Processing Engine
+*   **High-Throughput Architecture**: Decoupled packet capture and analysis using `asyncio` queues to handle gigabit traffic without packet loss.
+*   **Scalable Backend**: Professional separation of concerns between the ingestion engine, analysis workers, and the API/UI.
+
+### 🔑 TLS & JA3 Fingerprinting
+*   **Encrypted Traffic Analysis**: Implementation of JA3 fingerprinting to identify malware C2 and unauthorized tools even over encrypted TLS channels.
+*   **TLS Metadata Extraction**: Full visibility into TLS versions, cipher suites, and extensions.
+
+### 🌐 Live Threat Intelligence
+*   **IOC Synchronization**: Integrated module for syncing real-time Indicators of Compromise (IPs, Domains, Hashes) from professional feeds like AlienVault OTX.
+*   **Automated Matching**: Real-time cross-referencing of all network traffic against live threat intel.
 
 ### 🔬 Deep Packet Inspection (DPI)
 *   **Signature-Based Detection**: Real-time payload scanning for SQLi, XSS, Log4Shell, and more.

@@ -26,6 +26,8 @@ class PacketModel(Base):
     http_path = Column(String)
     payload_raw = Column(Text)
     payload_printable = Column(Text)
+    tls_version = Column(String)
+    ja3_hash = Column(String, index=True)
 
 class AlertModel(Base):
     __tablename__ = 'alerts'
@@ -141,12 +143,3 @@ class DatabaseManager:
             return None
         finally:
             session.close()
-
-if __name__ == '__main__':
-    db = DatabaseManager()
-    if not db.authenticate_user("admin", "admin"):
-        try: db.create_user("admin", "admin", role="Admin")
-        except: pass
-    if not db.authenticate_user("analyst", "analyst"):
-        try: db.create_user("analyst", "analyst", role="Analyst")
-        except: pass

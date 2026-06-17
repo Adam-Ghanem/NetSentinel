@@ -1,12 +1,12 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Text, ForeignKey, DateTime, Index
+from sqlalchemy import create_engine, Column, Integer, String, Float, Text, ForeignKey, DateTime, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import datetime
-import uuid
 import bcrypt
 from app.config import Config
 
 Base = declarative_base()
+
 
 class PacketModel(Base):
     __tablename__ = 'packets'
@@ -29,6 +29,7 @@ class PacketModel(Base):
     tls_version = Column(String)
     ja3_hash = Column(String, index=True)
 
+
 class AlertModel(Base):
     __tablename__ = 'alerts'
     id = Column(Integer, primary_key=True)
@@ -41,6 +42,7 @@ class AlertModel(Base):
     description = Column(Text)
     recommended_action = Column(Text)
     mitre_attack = Column(String)
+
 
 class CaseModel(Base):
     __tablename__ = 'cases'
@@ -56,6 +58,7 @@ class CaseModel(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     alert = relationship("AlertModel")
 
+
 class UserModel(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
@@ -63,12 +66,37 @@ class UserModel(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, default='Analyst')
 
+
 class DatabaseManager:
     def __init__(self, db_url=None):
         self.db_url = db_url or Config.DATABASE_URL
         self.engine = create_engine(self.db_url)
         Base.metadata.create_all(self.engine)
+        self._apply_sqlite_schema_updates()
         self.Session = sessionmaker(bind=self.engine)
+
+    def _apply_sqlite_schema_updates(self):
+        """Add newly introduced columns when an older local SQLite database already exists."""
+        if not self.db_url.startswith("sqlite"):
+            return
+
+        required_packet_columns = {
+            "payload_raw": "TEXT",
+            "payload_printable": "TEXT",
+            "tls_version": "VARCHAR",
+            "ja3_hash": "VARCHAR",
+        }
+
+        with self.engine.begin() as connection:
+            existing_columns = {
+                row[1] for row in connection.execute(text("PRAGMA table_info(packets)"))
+            }
+
+            for column_name, column_type in required_packet_columns.items():
+                if column_name not in existing_columns:
+                    connection.execute(
+                        text(f"ALTER TABLE packets ADD COLUMN {column_name} {column_type}")
+                    )
 
     def get_session(self):
         return self.Session()

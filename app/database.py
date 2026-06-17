@@ -1,20 +1,21 @@
-from sqlalchemy import create_all, create_engine, Column, Integer, String, Float, Text, ForeignKey, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Float, Text, ForeignKey, DateTime, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import datetime
 import uuid
 import bcrypt
+from app.config import Config
 
 Base = declarative_base()
 
 class PacketModel(Base):
     __tablename__ = 'packets'
     id = Column(Integer, primary_key=True)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
     source_mac = Column(String)
     dest_mac = Column(String)
-    source_ip = Column(String)
-    dest_ip = Column(String)
+    source_ip = Column(String, index=True)
+    dest_ip = Column(String, index=True)
     protocol = Column(String)
     source_port = Column(Integer)
     dest_port = Column(Integer)
@@ -28,8 +29,8 @@ class ConnectionModel(Base):
     __tablename__ = 'connections'
     id = Column(Integer, primary_key=True)
     conn_id = Column(String, unique=True, nullable=False)
-    source_ip = Column(String, nullable=False)
-    dest_ip = Column(String, nullable=False)
+    source_ip = Column(String, nullable=False, index=True)
+    dest_ip = Column(String, nullable=False, index=True)
     source_port = Column(Integer)
     dest_port = Column(Integer)
     protocol = Column(String)
@@ -43,11 +44,11 @@ class AlertModel(Base):
     __tablename__ = 'alerts'
     id = Column(Integer, primary_key=True)
     alert_id = Column(String, unique=True, nullable=False)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
-    source_ip = Column(String)
-    dest_ip = Column(String)
-    alert_type = Column(String, nullable=False)
-    severity = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    source_ip = Column(String, index=True)
+    dest_ip = Column(String, index=True)
+    alert_type = Column(String, nullable=False, index=True)
+    severity = Column(String, nullable=False, index=True)
     description = Column(Text)
     recommended_action = Column(Text)
     mitre_attack = Column(String)
@@ -59,8 +60,8 @@ class CaseModel(Base):
     alert_id = Column(String, ForeignKey('alerts.alert_id'))
     title = Column(String, nullable=False)
     analyst_notes = Column(Text)
-    status = Column(String, default='Open')
-    severity = Column(String)
+    status = Column(String, default='Open', index=True)
+    severity = Column(String, index=True)
     tags = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -69,7 +70,7 @@ class CaseModel(Base):
 class IOCCacheModel(Base):
     __tablename__ = 'ioc_cache'
     id = Column(Integer, primary_key=True)
-    indicator = Column(String, unique=True, nullable=False)
+    indicator = Column(String, unique=True, nullable=False, index=True)
     type = Column(String, nullable=False)
     last_checked = Column(DateTime, default=datetime.datetime.utcnow)
     data = Column(Text)
@@ -77,13 +78,14 @@ class IOCCacheModel(Base):
 class UserModel(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
-    username = Column(String, unique=True, nullable=False)
+    username = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
     role = Column(String, default='Analyst')
 
 class DatabaseManager:
-    def __init__(self, db_url="sqlite:///netsentinel.db"):
-        self.engine = create_engine(db_url)
+    def __init__(self, db_url=None):
+        self.db_url = db_url or Config.DATABASE_URL
+        self.engine = create_engine(self.db_url)
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
 
@@ -136,6 +138,7 @@ class DatabaseManager:
     def insert_case(self, case_data):
         session = self.get_session()
         try:
+            if 'id' in case_data: del case_data['id']
             case = CaseModel(**case_data)
             session.add(case)
             session.commit()
@@ -180,7 +183,6 @@ class DatabaseManager:
     def insert_ioc_cache(self, ioc_data):
         session = self.get_session()
         try:
-            # Check if already exists
             existing = session.query(IOCCacheModel).filter_by(indicator=ioc_data['indicator']).first()
             if existing:
                 for key, value in ioc_data.items():
@@ -223,8 +225,15 @@ class DatabaseManager:
 
 if __name__ == '__main__':
     db = DatabaseManager()
-    print("Database initialized with SQLAlchemy.")
-    # Create a default admin user if not exists
+    print("Database initialized.")
+    # Create default users if they don't exist
     if not db.authenticate_user("admin", "admin"):
-        db.create_user("admin", "admin", role="Admin")
-        print("Default admin user created.")
+        try:
+            db.create_user("admin", "admin", role="Admin")
+            print("Default admin created.")
+        except: pass
+    if not db.authenticate_user("analyst", "analyst"):
+        try:
+            db.create_user("analyst", "analyst", role="Analyst")
+            print("Default analyst created.")
+        except: pass

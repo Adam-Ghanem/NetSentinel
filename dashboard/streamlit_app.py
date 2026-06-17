@@ -5,9 +5,11 @@ import plotly.graph_objects as go
 import os
 import sys
 import json
+import tempfile
 from datetime import datetime, timedelta
+from io import BytesIO
 
-# Add parent directory to path to import app modules
+# Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.database import DatabaseManager
@@ -18,6 +20,9 @@ from app.rules_engine import RulesEngine
 from app.enrichment import Enrichment
 from app.case_manager import CaseManager
 from app.report_generator import ReportGenerator
+from app.utils import get_logger
+
+logger = get_logger(__name__)
 
 # Initialize session state
 if "authenticated" not in st.session_state:
@@ -26,6 +31,8 @@ if "role" not in st.session_state:
     st.session_state.role = None
 if "username" not in st.session_state:
     st.session_state.username = None
+if "sniffing" not in st.session_state:
+    st.session_state.sniffing = False
 
 # Initialize database manager
 @st.cache_resource
@@ -34,16 +41,20 @@ def get_db_manager():
 
 db = get_db_manager()
 
-# Initialize other components
+# Initialize components
 @st.cache_resource
 def get_components():
     rules_engine = RulesEngine()
+    analyzer = PacketAnalyzer(db)
     detection_engine = DetectionEngine(rules_engine, db)
+    sniffer = PacketSniffer(db, analyzer, detection_engine)
     enrichment = Enrichment(db)
     case_manager = CaseManager(db)
     return {
         "rules_engine": rules_engine,
+        "analyzer": analyzer,
         "detection_engine": detection_engine,
+        "sniffer": sniffer,
         "enrichment": enrichment,
         "case_manager": case_manager
     }
@@ -54,7 +65,7 @@ components = get_components()
 def login_page():
     st.set_page_config(page_title="NetSentinel - Login", layout="centered")
     st.title("🛡️ NetSentinel")
-    st.subheader("Network Monitoring & Threat Detection Platform")
+    st.subheader("Network Detection & Response Platform")
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -80,70 +91,81 @@ def login_page():
 def dashboard_page():
     st.title("📊 Dashboard")
     
-    # Get recent data
     alerts = db.get_alerts(limit=100)
     packets = db.get_packets(limit=1000)
+    cases = db.get_all_cases()
     
-    # Metrics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Total Alerts", len(alerts))
     with col2:
-        critical_alerts = len([a for a in alerts if a.severity == "Critical"])
-        st.metric("Critical Alerts", critical_alerts)
+        critical = len([a for a in alerts if a.severity == "Critical"])
+        st.metric("Critical", critical)
     with col3:
         st.metric("Total Packets", len(packets))
     with col4:
-        cases = db.get_all_cases()
-        st.metric("Open Cases", len([c for c in cases if c.status == "Open"]))
+        open_cases = len([c for c in cases if c.status == "Open"])
+        st.metric("Open Cases", open_cases)
     
-    # Alert Severity Distribution
-    if alerts:
-        severity_counts = {}
-        for alert in alerts:
-            severity_counts[alert.severity] = severity_counts.get(alert.severity, 0) + 1
-        
-        fig = px.pie(
-            values=list(severity_counts.values()),
-            names=list(severity_counts.keys()),
-            title="Alert Severity Distribution",
-            color_discrete_map={"Critical": "#d62728", "High": "#ff7f0e", "Medium": "#2ca02c", "Low": "#1f77b4"}
-        )
-        st.plotly_chart(fig, use_container_width=True)
+    st.markdown("---")
     
-    # Top Source IPs
-    if packets:
-        source_ips = {}
-        for packet in packets:
-            if packet.source_ip:
-                source_ips[packet.source_ip] = source_ips.get(packet.source_ip, 0) + 1
-        
-        top_ips = sorted(source_ips.items(), key=lambda x: x[1], reverse=True)[:10]
-        if top_ips:
-            fig = px.bar(
-                x=[ip[0] for ip in top_ips],
-                y=[ip[1] for ip in top_ips],
-                title="Top 10 Source IPs",
-                labels={"x": "Source IP", "y": "Packet Count"}
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if alerts:
+            severity_counts = {}
+            for alert in alerts:
+                severity_counts[alert.severity] = severity_counts.get(alert.severity, 0) + 1
+            
+            fig = px.pie(
+                values=list(severity_counts.values()),
+                names=list(severity_counts.keys()),
+                title="Alert Severity Distribution",
+                color_discrete_map={"Critical": "#d62728", "High": "#ff7f0e", "Medium": "#2ca02c", "Low": "#1f77b4"}
             )
             st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        if packets:
+            source_ips = {}
+            for packet in packets:
+                if packet.source_ip:
+                    source_ips[packet.source_ip] = source_ips.get(packet.source_ip, 0) + 1
+            
+            top_ips = sorted(source_ips.items(), key=lambda x: x[1], reverse=True)[:10]
+            if top_ips:
+                fig = px.bar(
+                    x=[ip[0] for ip in top_ips],
+                    y=[ip[1] for ip in top_ips],
+                    title="Top 10 Source IPs",
+                    labels={"x": "Source IP", "y": "Packet Count"}
+                )
+                st.plotly_chart(fig, use_container_width=True)
 
 # Live Packets Page
 def live_packets_page():
     st.title("📡 Live Packet Capture")
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("Start Sniffing"):
+        if st.button("▶️ Start Sniffing", use_container_width=True):
+            iface = st.session_state.get("selected_iface")
+            components["sniffer"].start_sniffing(iface=iface)
             st.session_state.sniffing = True
-            st.info("Packet capture started...")
+            st.success("Packet capture started...")
     
     with col2:
-        if st.button("Stop Sniffing"):
+        if st.button("⏹️ Stop Sniffing", use_container_width=True):
+            components["sniffer"].stop_sniffing()
             st.session_state.sniffing = False
             st.info("Packet capture stopped.")
     
-    # Display recent packets
+    with col3:
+        st.session_state.selected_iface = st.selectbox("Interface", [None, "eth0", "wlan0", "lo"])
+    
+    if st.session_state.sniffing:
+        st.warning("🔴 Capturing packets...")
+    
     packets = db.get_packets(limit=50)
     if packets:
         packet_data = []
@@ -168,10 +190,81 @@ def pcap_upload_page():
     st.title("📁 PCAP File Analysis")
     
     uploaded_file = st.file_uploader("Upload PCAP file", type="pcap")
+    
     if uploaded_file is not None:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pcap") as tmp:
+            tmp.write(uploaded_file.getbuffer())
+            tmp_path = tmp.name
+        
         st.info(f"Processing {uploaded_file.name}...")
-        # In a real implementation, parse the PCAP file and insert packets
-        st.success("PCAP file processed successfully!")
+        
+        packet_count = components["sniffer"].process_pcap(tmp_path)
+        
+        if packet_count > 0:
+            st.success(f"Processed {packet_count} packets successfully!")
+            
+            # Show summary
+            packets = db.get_packets(limit=packet_count)
+            alerts = db.get_alerts(limit=100)
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Packets", len(packets))
+            with col2:
+                st.metric("Alerts", len(alerts))
+            with col3:
+                protocols = {}
+                for p in packets:
+                    if p.protocol:
+                        protocols[p.protocol] = protocols.get(p.protocol, 0) + 1
+                st.metric("Protocols", len(protocols))
+            with col4:
+                source_ips = set(p.source_ip for p in packets if p.source_ip)
+                st.metric("Unique Sources", len(source_ips))
+            
+            st.markdown("---")
+            
+            # Protocol Distribution
+            if protocols:
+                fig = px.pie(
+                    values=list(protocols.values()),
+                    names=list(protocols.keys()),
+                    title="Protocol Distribution"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Top Destination Ports
+            dest_ports = {}
+            for p in packets:
+                if p.dest_port:
+                    dest_ports[str(p.dest_port)] = dest_ports.get(str(p.dest_port), 0) + 1
+            
+            if dest_ports:
+                top_ports = sorted(dest_ports.items(), key=lambda x: x[1], reverse=True)[:10]
+                fig = px.bar(
+                    x=[p[0] for p in top_ports],
+                    y=[p[1] for p in top_ports],
+                    title="Top 10 Destination Ports",
+                    labels={"x": "Port", "y": "Count"}
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Alerts
+            if alerts:
+                st.subheader("Alerts Generated")
+                alert_data = []
+                for alert in alerts:
+                    alert_data.append({
+                        "Type": alert.alert_type,
+                        "Severity": alert.severity,
+                        "Source": alert.source_ip,
+                        "Description": alert.description
+                    })
+                st.dataframe(pd.DataFrame(alert_data), use_container_width=True)
+        
+        os.unlink(tmp_path)
+    else:
+        st.info("Upload a PCAP file to analyze network traffic.")
 
 # Alerts Page
 def alerts_page():
@@ -194,7 +287,6 @@ def alerts_page():
         df = pd.DataFrame(alert_data)
         st.dataframe(df, use_container_width=True)
         
-        # Filter by severity
         severity_filter = st.selectbox("Filter by Severity", ["All", "Critical", "High", "Medium", "Low"])
         if severity_filter != "All":
             df_filtered = df[df["Severity"] == severity_filter]
@@ -206,10 +298,9 @@ def alerts_page():
 def cases_page():
     st.title("📋 Case Management")
     
-    cases = db.get_all_cases()
-    
-    if st.button("Create New Case"):
-        st.session_state.show_case_form = True
+    if st.session_state.role == "Admin" or st.session_state.role == "Analyst":
+        if st.button("➕ Create New Case"):
+            st.session_state.show_case_form = True
     
     if st.session_state.get("show_case_form", False):
         st.subheader("Create New Case")
@@ -218,11 +309,24 @@ def cases_page():
         tags = st.text_input("Tags (comma-separated)")
         
         if st.button("Save Case"):
-            # Create case (would need alert_id in real scenario)
-            st.success("Case created successfully!")
-            st.session_state.show_case_form = False
-            st.rerun()
+            if title:
+                case_data = {
+                    "case_id": "",
+                    "alert_id": None,
+                    "title": title,
+                    "analyst_notes": notes,
+                    "status": "Open",
+                    "severity": "Medium",
+                    "tags": tags
+                }
+                components["case_manager"].create_case_from_alert(case_data, title, notes, tags)
+                st.success("Case created successfully!")
+                st.session_state.show_case_form = False
+                st.rerun()
+            else:
+                st.error("Please enter a case title.")
     
+    cases = db.get_all_cases()
     if cases:
         case_data = []
         for case in cases:
@@ -236,6 +340,22 @@ def cases_page():
         
         df = pd.DataFrame(case_data)
         st.dataframe(df, use_container_width=True)
+        
+        # Edit case
+        if st.session_state.role == "Admin" or st.session_state.role == "Analyst":
+            st.markdown("---")
+            st.subheader("Update Case")
+            case_id = st.selectbox("Select Case", [c.case_id for c in cases])
+            if case_id:
+                case = next((c for c in cases if c.case_id == case_id), None)
+                if case:
+                    new_status = st.selectbox("Status", ["Open", "Investigating", "Closed"], index=["Open", "Investigating", "Closed"].index(case.status))
+                    new_notes = st.text_area("Analyst Notes", value=case.analyst_notes or "")
+                    
+                    if st.button("Update Case"):
+                        db.update_case(case_id, {"status": new_status, "analyst_notes": new_notes})
+                        st.success("Case updated!")
+                        st.rerun()
     else:
         st.info("No cases created yet.")
 
@@ -256,17 +376,36 @@ def ioc_enrichment_page():
 def reports_page():
     st.title("📄 Security Reports")
     
-    if st.button("Generate Report"):
-        # Generate a sample report
-        report_data = {
-            "title": "NetSentinel Security Report",
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "alerts": db.get_alerts(limit=100),
-            "packets": db.get_packets(limit=1000)
-        }
-        
-        st.success("Report generated successfully!")
-        st.info("Report download feature coming soon.")
+    if st.session_state.role == "Admin":
+        if st.button("📊 Generate Report"):
+            alerts = db.get_alerts(limit=100)
+            packets = db.get_packets(limit=1000)
+            
+            report_data = {
+                "title": "NetSentinel Security Report",
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "alerts": alerts,
+                "packets": packets
+            }
+            
+            try:
+                report_gen = ReportGenerator("temp_report.pdf")
+                report_gen.generate_report(report_data)
+                
+                with open("temp_report.pdf", "rb") as f:
+                    pdf_bytes = f.read()
+                
+                st.download_button(
+                    label="📥 Download Report",
+                    data=pdf_bytes,
+                    file_name=f"NetSentinel_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf"
+                )
+                st.success("Report generated successfully!")
+            except Exception as e:
+                st.error(f"Error generating report: {e}")
+    else:
+        st.warning("Only Admins can generate reports.")
 
 # Main Application
 def main():

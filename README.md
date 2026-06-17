@@ -1,84 +1,152 @@
-<p align="center">
-  <img src="assets/banner_elite.png" alt="NetSentinel Banner" width="100%">
-</p>
+# NetSentinel
 
-# <img src="assets/logo.png" width="48" height="48" valign="middle"> NetSentinel: Cyber Ops NDR & Forensic Platform
+NetSentinel is an educational network metadata monitoring prototype. It is built to demonstrate Python, Scapy, Streamlit, SQLAlchemy, basic detection logic, and SOC-style investigation workflows.
 
-NetSentinel is a professional-grade, "mferge3" (explosive) Network Detection and Response (NDR) platform designed for senior cybersecurity engineers and pentesters. It combines deep packet inspection (DPI), advanced traffic pattern analysis, and automated security orchestration (SOAR) into a high-tech "Cyber Ops" command center.
+The project is intended for learning, lab environments, and portfolio demonstration. It should be used only in environments where monitoring is allowed.
 
-## 🚀 Elite Enterprise Features (5+ Years Exp Architecture)
+## Current Project Status
 
-### 🌪️ Async Processing Engine
-*   **High-Throughput Architecture**: Decoupled packet capture and analysis using `asyncio` queues to handle gigabit traffic without packet loss.
-*   **Scalable Backend**: Professional separation of concerns between the ingestion engine, analysis workers, and the API/UI.
+This repository is a prototype, not a finished enterprise product. The documentation below separates completed work from features that are still in progress.
 
-### 🔑 TLS & JA3 Fingerprinting
-*   **Encrypted Traffic Analysis**: Implementation of JA3 fingerprinting to identify malware C2 and unauthorized tools even over encrypted TLS channels.
-*   **TLS Metadata Extraction**: Full visibility into TLS versions, cipher suites, and extensions.
+### Implemented
 
-### 🌐 Live Threat Intelligence
-*   **IOC Synchronization**: Integrated module for syncing real-time Indicators of Compromise (IPs, Domains, Hashes) from professional feeds like AlienVault OTX.
-*   **Automated Matching**: Real-time cross-referencing of all network traffic against live threat intel.
+- Metadata parsing for Ethernet, ARP, IPv4, TCP, UDP, ICMP, DNS, and basic HTTP fields.
+- SQLAlchemy models for packets, connections, alerts, cases, IOC cache entries, and users.
+- Local SQLite storage for packet metadata and alerts.
+- Password hashing with bcrypt for local dashboard authentication.
+- YAML rule loading for basic detection conditions.
+- Streamlit dashboard pages for login, overview metrics, packet display, alerts, cases, IOC lookup, and reports.
+- IOC enrichment structure with optional AbuseIPDB and VirusTotal API keys.
+- PDF report generator module using ReportLab.
+- Docker and Docker Compose configuration for local deployment.
 
-### 🔬 Deep Packet Inspection (DPI)
-*   **Signature-Based Detection**: Real-time payload scanning for SQLi, XSS, Log4Shell, and more.
-*   **Payload Extraction**: Full UTF-8 decoded payload visibility for forensic analysis.
-*   **Exploit Matching**: Integrated regex engine for identifying known exploit patterns.
+### Partially Implemented
 
-### 📡 Advanced Threat Detection
-*   **C2 Beaconing Detection**: Statistical analysis of connection intervals to identify malware heartbeats.
-*   **Reverse Shell Identification**: Pattern matching for common shell execution strings (Bash, Python, etc.).
-*   **Stateful Connection Tracking**: Zeek-style connection logging with 5-tuple tracking.
+- Live metadata collection backend exists, but the dashboard workflow still needs improvement.
+- PCAP upload page exists, but full parsing and database ingestion are still in progress.
+- Case management data model exists, but the dashboard workflow needs stronger integration with alerts.
+- Report generation module exists, but the dashboard download workflow needs to be completed.
+- Detection rules include stateful ideas, but the rule engine needs more complete time-window logic.
 
-### 🛠️ SOAR & Active Response
-*   **Automated Host Blocking**: Integrated SOAR module to blacklist malicious IPs via system firewall.
-*   **One-Click Containment**: Direct "BLOCK" buttons from forensic views and alerts.
-*   **Audit Logging**: Full tracking of all automated and manual response actions.
+### Planned
 
-### 📊 Cyber Ops Dashboard
-*   **Professional UI**: High-contrast, low-light optimized dashboard for SOC environments.
-*   **Forensic Tab**: Dedicated workspace for PCAP DPI and payload investigation.
-*   **Live Intercept**: Real-time packet stream with protocol distribution heatmaps.
+- More reliable time-window based detections.
+- Better connection tracking and persistent connection logs.
+- Improved dashboard actions for live collection, case updates, and report export.
+- Unit and integration tests.
+- GitHub Actions for automated testing.
+- Dependency pinning and stronger Docker health checks.
+- Demo screenshots and sample data.
 
-## 🏗️ Architecture
+## Architecture
 
-```mermaid
-graph TD
-    A[Network Interface / PCAP] --> B[Packet Sniffer]
-    B --> C[Packet Parser - DPI]
-    C --> D[Packet Analyzer - Stats/Beaconing]
-    D --> E[Rules Engine - Signatures]
-    E --> F[Detection Engine]
-    F --> G[(SQLAlchemy DB)]
-    G --> H[Cyber Ops Dashboard]
-    H --> I[SOAR Manager]
-    I --> J[System Firewall / Blocking]
+```text
+NetSentinel/
+├── app/
+│   ├── sniffer.py          # Scapy-based collection wrapper
+│   ├── parser.py           # Metadata extraction
+│   ├── analyzer.py         # Traffic statistics and connection tracking
+│   ├── detection_engine.py # Alert creation from matched rules
+│   ├── rules_engine.py     # YAML rule loading and evaluation
+│   ├── enrichment.py       # IOC lookup and local cache support
+│   ├── database.py         # SQLAlchemy models and database helper methods
+│   ├── report_generator.py # PDF report generation
+│   ├── case_manager.py     # Case creation and update helpers
+│   ├── config.py           # Environment-based configuration
+│   └── utils.py            # Shared utility functions and logging
+├── dashboard/
+│   └── streamlit_app.py    # Streamlit user interface
+├── rules/
+│   └── default_rules.yaml  # Example detection rules
+├── data/
+│   └── sample_packets.csv  # Sample packet data
+├── reports/                # Generated reports
+├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+└── README.md
 ```
 
-## 🛠️ Installation & Expert Usage
+## Requirements
 
-### Local Deployment
+- Python 3.10+
+- Docker and Docker Compose, optional
+- Elevated system permissions may be required for live network metadata collection
+
+## Local Setup
+
 ```bash
 git clone https://github.com/Adam-Ghanem/NetSentinel.git
 cd NetSentinel
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-# Initialize Cyber Ops DB
-python -c "from app.database import DatabaseManager; db = DatabaseManager(); db.create_user('admin', 'admin', role='Admin')"
-# Launch Command Center
-streamlit run dashboard/streamlit_app.py
 ```
 
-### Expert PCAP Analysis
-Use the `tests/generate_expert_pcap.py` to create a sample containing:
-1.  SQL Injection strings
-2.  Log4Shell JNDI patterns
-3.  Bash Reverse Shells
-4.  C2 Beaconing patterns
+Initialize the local database and create demo users:
 
-Upload this to the **FORENSICS** tab to see DPI and signature detection in action.
+```bash
+python -c "from app.database import DatabaseManager; db = DatabaseManager(); db.create_user('admin', 'admin', role='Admin'); db.create_user('analyst', 'analyst', role='Analyst'); print('Demo users created.')"
+```
 
-## ⚠️ Offensive-Defensive Disclaimer
-This tool is built for **expert pentesters and defensive engineers**. It includes active response capabilities that can disrupt network connectivity. Use only in authorized environments.
+Demo credentials are intended only for local testing:
 
----
-*Developed for elite SOC operations and high-stakes portfolio presentations.*
+```text
+admin / admin
+analyst / analyst
+```
+
+Optional `.env` example:
+
+```env
+ABUSEIPDB_API_KEY=""
+VIRUSTOTAL_API_KEY=""
+DATABASE_URL="sqlite:///netsentinel.db"
+LOG_LEVEL="INFO"
+```
+
+## Run the Dashboard
+
+```bash
+streamlit run dashboard/streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+```
+
+Open the dashboard at:
+
+```text
+http://localhost:8501
+```
+
+## Docker Usage
+
+```bash
+docker-compose up --build
+```
+
+The dashboard should be available on port `8501`.
+
+## Detection Rules
+
+Rules are stored in YAML format under the `rules/` directory. The current rule engine supports a basic subset of conditions such as protocol, destination port, source IP, TCP flags, DNS query patterns, packet thresholds, unique destination ports, and selected unusual ports.
+
+Some rule fields in `default_rules.yaml` describe planned stateful behavior. They should be treated as roadmap items until the engine fully supports time-window tracking.
+
+## Example Workflow
+
+1. Start the dashboard.
+2. Log in with a local demo account.
+3. Review stored metadata.
+4. Review generated alerts.
+5. Create or update investigation cases.
+6. Enrich public indicators when API keys are configured.
+7. Generate a PDF report once dashboard export is fully connected.
+
+## Development Notes
+
+The project is intentionally small and educational. It is useful for demonstrating knowledge of networking, Python, Streamlit, SQLAlchemy, basic detection engineering, and SOC workflow design.
+
+Before presenting the project as a completed platform, the remaining partial features should be completed and tested.
+
+## License
+
+This project is provided for defensive security education and portfolio use.

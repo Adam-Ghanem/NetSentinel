@@ -9,6 +9,7 @@ import tempfile
 import time
 from datetime import datetime, timedelta
 from io import BytesIO
+from PIL import Image
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,22 +29,23 @@ logger = get_logger(__name__)
 
 # --- UI CONFIG ---
 st.set_page_config(
-    page_title="NetSentinel Cyber Ops",
+    page_title="NetSentinel | Cyber Ops Command",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for "Cyber Ops" look
+# Custom CSS for 1000% Professional Cyber Ops Look
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; color: #e0e0e0; }
-    .stMetric { background-color: #1a1c24; padding: 15px; border-radius: 10px; border-left: 5px solid #00ff00; }
-    .stDataFrame { border: 1px solid #333; }
-    .sidebar .sidebar-content { background-image: linear-gradient(#1a1c24, #0e1117); }
-    h1, h2, h3 { color: #00ff00 !important; font-family: 'Courier New', Courier, monospace; }
-    .stButton>button { background-color: #1a1c24; color: #00ff00; border: 1px solid #00ff00; }
-    .stButton>button:hover { background-color: #00ff00; color: #1a1c24; }
+    .main { background-color: #05070a; color: #00ff00; font-family: 'Monaco', 'Courier New', monospace; }
+    .stMetric { background-color: #0a0d14; padding: 20px; border-radius: 5px; border: 1px solid #00ff00; box-shadow: 0 0 10px #00ff0033; }
+    .stDataFrame { border: 1px solid #00ff00; }
+    h1, h2, h3 { color: #00ff00 !important; text-transform: uppercase; letter-spacing: 2px; }
+    .stButton>button { background-color: #000; color: #00ff00; border: 1px solid #00ff00; border-radius: 0px; font-weight: bold; }
+    .stButton>button:hover { background-color: #00ff00; color: #000; box-shadow: 0 0 15px #00ff00; }
+    .sidebar .sidebar-content { background-color: #0a0d14; border-right: 1px solid #00ff00; }
+    div[data-testid="stExpander"] { border: 1px solid #00ff0033; background-color: #0a0d14; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -77,12 +79,17 @@ comp = get_components(db)
 
 # --- PAGES ---
 def login_page():
-    st.title("🛡️ NETSENTINEL: CYBER OPS LOGIN")
+    # Prominent Logo on Login
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        username = st.text_input("Operator ID")
-        password = st.text_input("Access Key", type="password")
-        if st.button("AUTHORIZE", use_container_width=True):
+        if os.path.exists("assets/logo.png"):
+            st.image("assets/logo.png", width=200)
+        st.title("🛡️ NETSENTINEL")
+        st.subheader("CYBER OPS COMMAND CENTER")
+        st.markdown("---")
+        username = st.text_input("OPERATOR ID")
+        password = st.text_input("ACCESS KEY", type="password")
+        if st.button("AUTHORIZE ACCESS", use_container_width=True):
             user = db.authenticate_user(username, password)
             if user:
                 st.session_state.authenticated = True
@@ -93,154 +100,133 @@ def login_page():
                 st.error("ACCESS DENIED: INVALID CREDENTIALS")
 
 def dashboard_page():
-    st.title("🌐 GLOBAL THREAT OVERVIEW")
+    st.title("🌐 MISSION CONTROL: GLOBAL THREAT STATUS")
     
-    alerts = db.get_alerts(limit=500)
-    packets = db.get_packets(limit=2000)
-    cases = db.get_all_cases()
+    alerts = db.get_alerts(limit=1000)
+    packets = db.get_packets(limit=5000)
     
-    # Top Metrics
+    # Real-time Telemetry Metrics
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("THREATS DETECTED", len(alerts))
-    m2.metric("CRITICAL INCIDENTS", len([a for a in alerts if a.severity == "Critical"]))
-    m3.metric("ACTIVE CONNECTIONS", len(comp["analyzer"].get_connections()))
-    m4.metric("BLOCKED HOSTS", len(comp["soar"].get_blocked_ips()))
+    with m1: st.metric("ACTIVE THREATS", len(alerts))
+    with m2: st.metric("CRITICAL BREACHES", len([a for a in alerts if a.severity == "Critical"]))
+    with m3: st.metric("HOSTS BLACKLISTED", len(comp["soar"].get_blocked_ips()))
+    with m4: st.metric("DPI THROUGHPUT", f"{len(packets)} PKTS")
     
     st.markdown("---")
     
     c1, c2 = st.columns([2, 1])
     with c1:
-        st.subheader("📡 Real-Time Traffic Distribution")
+        st.subheader("📡 TRAFFIC ANALYSIS")
         if packets:
-            df_p = pd.DataFrame([{ "Protocol": p.protocol, "Size": p.packet_size } for p in packets])
-            fig = px.area(df_p, y="Size", color="Protocol", title="Network Throughput")
+            df_p = pd.DataFrame([{ "Protocol": p.protocol, "Size": p.packet_size, "Time": p.timestamp } for p in packets])
+            fig = px.line(df_p, x="Time", y="Size", color="Protocol", title="NETWORK LOAD TELEMETRY", template="plotly_dark")
+            fig.update_traces(line=dict(width=1))
             st.plotly_chart(fig, use_container_width=True)
             
     with c2:
-        st.subheader("🚨 Alert Severity")
+        st.subheader("🚨 SEVERITY DISTRIBUTION")
         if alerts:
             df_a = pd.DataFrame([{ "Severity": a.severity } for a in alerts])
-            fig = px.pie(df_a, names="Severity", hole=0.4, color_discrete_sequence=px.colors.sequential.RdBu)
+            fig = px.pie(df_a, names="Severity", hole=0.6, color_discrete_sequence=px.colors.sequential.Greens_r)
+            fig.update_layout(showlegend=False, template="plotly_dark")
             st.plotly_chart(fig, use_container_width=True)
 
-def live_ops_page():
-    st.title("⚡ LIVE INTERCEPT OPS")
+def live_intercept_page():
+    st.title("⚡ LIVE INTERCEPT: PACKET STREAM")
     
-    t1, t2 = st.tabs(["Packet Stream", "Active Connections"])
-    
-    with t1:
-        col1, col2, col3 = st.columns([1, 1, 2])
-        if col1.button("▶️ START CAPTURE"):
-            comp["sniffer"].start_sniffing()
-            st.session_state.sniffing = True
-        if col2.button("⏹️ STOP CAPTURE"):
-            comp["sniffer"].stop_sniffing()
-            st.session_state.sniffing = False
+    col1, col2, col3 = st.columns([1, 1, 2])
+    if col1.button("▶️ ENGAGE SNIFFER"):
+        comp["sniffer"].start_sniffing()
+        st.session_state.sniffing = True
+    if col2.button("⏹️ DISENGAGE SNIFFER"):
+        comp["sniffer"].stop_sniffing()
+        st.session_state.sniffing = False
             
-        if st.session_state.sniffing:
-            st.success("SCANNING NETWORK INTERFACE...")
+    if st.session_state.sniffing:
+        st.success("🔴 MONITORING NETWORK INTERFACE: PROMISCUOUS MODE ACTIVE")
             
-        packets = db.get_packets(limit=100)
-        if packets:
-            df = pd.DataFrame([{
-                "Time": p.timestamp, "Src": p.source_ip, "Dst": p.dest_ip, 
-                "Proto": p.protocol, "DPort": p.dest_port, "Size": p.packet_size,
-                "Flags": p.tcp_flags
-            } for p in packets])
-            st.dataframe(df, use_container_width=True)
-            
-    with t2:
-        conns = comp["analyzer"].get_connections()
-        if conns:
-            st.dataframe(pd.DataFrame(conns), use_container_width=True)
-        else:
-            st.info("No active connections tracked.")
+    packets = db.get_packets(limit=100)
+    if packets:
+        df = pd.DataFrame([{
+            "TIME": p.timestamp.strftime("%H:%M:%S.%f")[:-3], "SRC": p.source_ip, "DST": p.dest_ip, 
+            "PROTO": p.protocol, "PORT": p.dest_port, "SIZE": p.packet_size,
+            "FLAGS": p.tcp_flags
+        } for p in packets])
+        st.table(df) # Using table for more "raw" terminal feel
 
-def forensic_page():
-    st.title("🔬 DEEP FORENSIC ANALYSIS")
+def forensic_dpi_page():
+    st.title("🔬 DEEP PACKET INSPECTION (DPI)")
     
-    pcap = st.file_uploader("UPLOAD PCAP FOR DPI", type="pcap")
+    pcap = st.file_uploader("LOAD EXTERNAL PCAP DATA", type="pcap")
     if pcap:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(pcap.read())
             path = tmp.name
         
-        with st.spinner("PERFORMING DEEP PACKET INSPECTION..."):
+        with st.spinner("DECRYPTING & INSPECTING PAYLOADS..."):
             count = comp["sniffer"].process_pcap(path)
-            st.success(f"ANALYSIS COMPLETE: {count} PACKETS INSPECTED")
+            st.success(f"DPI COMPLETE: {count} PACKETS EXTRACTED")
             
-            # Show DPI results
             packets = db.get_packets(limit=count)
             payloads = [p for p in packets if p.payload_printable]
             if payloads:
-                st.subheader("Extracted Payloads (DPI)")
-                for p in payloads[:10]:
-                    with st.expander(f"Packet from {p.source_ip} to {p.dest_ip} ({p.protocol})"):
-                        st.code(p.payload_printable)
-                        if st.button(f"Block {p.source_ip}", key=f"block_{p.id}"):
-                            comp["soar"].block_ip(p.source_ip, "Malicious payload detected during DPI")
-                            st.warning(f"HOST {p.source_ip} BLACKLISTED")
-
-def soar_page():
-    st.title("🛠️ SOAR: ACTIVE RESPONSE")
-    
-    st.subheader("Current Blacklist")
-    blocked = comp["soar"].get_blocked_ips()
-    if blocked:
-        for ip in blocked:
-            col1, col2 = st.columns([3, 1])
-            col1.write(f"🚫 **{ip}**")
-            if col2.button(f"UNBLOCK", key=f"unblock_{ip}"):
-                comp["soar"].unblock_ip(ip)
-                st.rerun()
-    else:
-        st.info("No hosts currently blocked.")
-        
-    st.markdown("---")
-    st.subheader("Manual Block")
-    ip_to_block = st.text_input("Enter IP to Blacklist")
-    if st.button("EXECUTE BLOCK"):
-        if ip_to_block:
-            comp["soar"].block_ip(ip_to_block, "Manual operator action")
-            st.success(f"IP {ip_to_block} HAS BEEN DROPPED")
-            st.rerun()
+                st.subheader("EXTRACTED FORENSIC PAYLOADS")
+                for p in payloads[:20]:
+                    with st.expander(f"PKT ID: {p.id} | {p.source_ip} -> {p.dest_ip} | {p.protocol}"):
+                        st.text_area("RAW PAYLOAD", p.payload_printable, height=100)
+                        if st.button(f"EXECUTE BLOCK: {p.source_ip}", key=f"block_{p.id}"):
+                            comp["soar"].block_ip(p.source_ip, "MALICIOUS PAYLOAD DETECTED")
+                            st.error(f"HOST {p.source_ip} HAS BEEN DROPPED")
 
 # --- MAIN APP ---
 def main():
     if not st.session_state.authenticated:
         login_page()
     else:
+        # Sidebar with Logo
+        if os.path.exists("assets/logo.png"):
+            st.sidebar.image("assets/logo.png", width=150)
         st.sidebar.title("🛡️ NETSENTINEL")
-        st.sidebar.write(f"OPERATOR: {st.session_state.username}")
+        st.sidebar.markdown(f"**OPERATOR:** `{st.session_state.username}`")
+        st.sidebar.markdown(f"**ROLE:** `{st.session_state.role}`")
+        st.sidebar.markdown("---")
         
-        nav = st.sidebar.radio("COMMAND CENTER", [
-            "DASHBOARD", "LIVE OPS", "FORENSICS", "ALERTS", "CASES", "SOAR", "REPORTS"
+        nav = st.sidebar.radio("COMMAND HIERARCHY", [
+            "DASHBOARD", "LIVE INTERCEPT", "FORENSIC DPI", "THREAT ALERTS", "CASE MGMT", "SOAR CONTROL"
         ])
         
-        if st.sidebar.button("TERMINATE SESSION"):
+        st.sidebar.markdown("---")
+        if st.sidebar.button("TERMINATE OPS"):
             st.session_state.authenticated = False
             st.rerun()
             
         if nav == "DASHBOARD": dashboard_page()
-        elif nav == "LIVE OPS": live_ops_page()
-        elif nav == "FORENSICS": forensic_page()
-        elif nav == "ALERTS":
-            st.title("🚨 SECURITY ALERTS")
-            alerts = db.get_alerts(limit=100)
+        elif nav == "LIVE INTERCEPT": live_intercept_page()
+        elif nav == "FORENSIC DPI": forensic_dpi_page()
+        elif nav == "THREAT ALERTS":
+            st.title("🚨 ACTIVE THREAT ALERTS")
+            alerts = db.get_alerts(limit=200)
             if alerts:
                 st.dataframe(pd.DataFrame([{
-                    "Time": a.timestamp, "Type": a.alert_type, "Severity": a.severity,
-                    "Src": a.source_ip, "Dst": a.dest_ip, "MITRE": a.mitre_attack
+                    "TIMESTAMP": a.timestamp, "THREAT": a.alert_type, "SEVERITY": a.severity,
+                    "SOURCE": a.source_ip, "TARGET": a.dest_ip, "MITRE": a.mitre_attack
                 } for a in alerts]), use_container_width=True)
-        elif nav == "CASES":
-            st.title("📋 CASE MANAGEMENT")
-            # Reuse simplified case management from before or expand
-            st.info("Incident response workflow active.")
-        elif nav == "SOAR": soar_page()
-        elif nav == "REPORTS":
-            st.title("📄 MISSION REPORTS")
-            if st.button("GENERATE INTEL REPORT"):
-                st.success("PDF Report Compiled.")
+        elif nav == "CASE MGMT":
+            st.title("📋 INCIDENT CASE MANAGEMENT")
+            st.info("OPERATIONAL WORKFLOW ACTIVE. TRACKING ALL SECURITY INCIDENTS.")
+        elif nav == "SOAR CONTROL":
+            st.title("🛠️ SOAR: ACTIVE DEFENSE CONTROL")
+            st.subheader("HOST BLACKLIST")
+            blocked = comp["soar"].get_blocked_ips()
+            if blocked:
+                for ip in blocked:
+                    col1, col2 = st.columns([3, 1])
+                    col1.warning(f"🚫 DROPPING ALL TRAFFIC FROM: {ip}")
+                    if col2.button(f"PURGE BLOCK", key=f"unblock_{ip}"):
+                        comp["soar"].unblock_ip(ip)
+                        st.rerun()
+            else:
+                st.info("NO ACTIVE BLOCKS IN SYSTEM.")
 
 if __name__ == "__main__":
     main()

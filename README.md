@@ -1,4 +1,8 @@
-# NetSentinel
+<p align="center">
+  <img src="assets/logo.svg" alt="NetSentinel logo" width="220">
+</p>
+
+<h1 align="center">NetSentinel</h1>
 
 NetSentinel is an educational network metadata monitoring prototype. It is built to demonstrate Python, Scapy, Streamlit, SQLAlchemy, basic detection logic, and SOC-style investigation workflows.
 

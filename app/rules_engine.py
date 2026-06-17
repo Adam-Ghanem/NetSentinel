@@ -1,7 +1,10 @@
 import yaml
 import os
 import re
-from datetime import datetime, timedelta
+import time
+from app.utils import get_logger, is_public_ip
+
+logger = get_logger(__name__)
 
 class RulesEngine:
     def __init__(self, rules_dir="rules"):
@@ -25,8 +28,8 @@ class RulesEngine:
                         elif isinstance(loaded_rules, dict):
                             rules.append(loaded_rules)
                     except yaml.YAMLError as e:
-                        print(f"Error loading YAML rule file {filepath}: {e}")
-        print(f"Loaded {len(rules)} detection rules.")
+                        logger.error(f"Error loading YAML rule file {filepath}: {e}")
+        logger.info(f"Loaded {len(rules)} detection rules.")
         return rules
 
     def evaluate_rules(self, parsed_packet, connections, traffic_stats):
@@ -37,54 +40,77 @@ class RulesEngine:
         return triggered_rules
 
     def _check_rule(self, rule, parsed_packet, connections, traffic_stats):
-        # 1. Protocol Match
+        # 1. Basic Filters
         if rule.get("protocol") and parsed_packet.get("protocol") != rule["protocol"]:
             return False
-
-        # 2. Destination Port Match
         if rule.get("dest_port") and parsed_packet.get("dest_port") != rule["dest_port"]:
             return False
-
-        # 3. Source IP Match
         if rule.get("source_ip") and parsed_packet.get("source_ip") != rule["source_ip"]:
             return False
-
-        # 4. TCP Flags Match
         if rule.get("tcp_flags") and parsed_packet.get("tcp_flags") != rule["tcp_flags"]:
             return False
+        if rule.get("arp_op") and parsed_packet.get("arp_op") != rule["arp_op"]:
+            return False
 
-        # 5. DNS Query Pattern (Regex)
+        # 2. Payload Signature Matching (DPI)
+        if rule.get("payload_pattern"):
+            payload = parsed_packet.get("payload_printable")
+            if not payload:
+                return False
+            if not re.search(rule["payload_pattern"], payload):
+                return False
+
+        # 3. DNS Pattern
         if rule.get("dns_query_pattern") and parsed_packet.get("dns_query"):
             if not re.search(rule["dns_query_pattern"], parsed_packet["dns_query"]):
                 return False
         elif rule.get("dns_query_pattern") and not parsed_packet.get("dns_query"):
             return False
 
-        # 6. Stateful / Traffic Stats Checks
-        source_ip = parsed_packet.get("source_ip")
-        if source_ip and traffic_stats.get(source_ip):
-            stats = traffic_stats[source_ip]
-            
-            # High Traffic Volume
-            if rule.get("min_packets") and stats.get("total_packets", 0) < rule["min_packets"]:
-                return False
-            
-            # Port Scan (Multiple unique destination ports)
+        # 4. Stateful / Traffic Stats Checks
+        src_ip = parsed_packet.get("source_ip")
+        stats = traffic_stats.get(src_ip, {}) if src_ip else {}
+        
+        current_time = time.time()
+
+        if stats:
             if rule.get("min_unique_ports"):
-                unique_ports = len(stats.get("dest_ports", {}))
-                if unique_ports < rule["min_unique_ports"]:
+                if len(stats.get("dest_ports", {})) < rule["min_unique_ports"]:
                     return False
 
-        # 7. Unusual Ports
-        if rule.get("unusual_ports") and parsed_packet.get("dest_port"):
-            if parsed_packet["dest_port"] not in rule["unusual_ports"]:
+            if rule.get("min_syn_packets"):
+                if stats.get("syn_packets", 0) < rule["min_syn_packets"]:
+                    return False
+
+            if rule.get("min_dns_queries"):
+                if stats.get("dns_queries", 0) < rule["min_dns_queries"]:
+                    return False
+
+            if rule.get("min_bytes_per_second"):
+                duration = max(1, current_time - stats.get("start_time", current_time))
+                if (stats.get("total_bytes", 0) / duration) < rule["min_bytes_per_second"]:
+                    return False
+
+            if rule.get("interval_variance_threshold"):
+                history = stats.get("connection_history", [])
+                if len(history) < 5:
+                    return False
+                intervals = [history[i] - history[i-1] for i in range(1, len(history))]
+                avg_interval = sum(intervals) / len(intervals)
+                variance = sum((x - avg_interval) ** 2 for x in intervals) / len(intervals)
+                if variance > rule["interval_variance_threshold"]:
+                    return False
+
+        # 5. External IP Check
+        if rule.get("is_external_ip"):
+            dst_ip = parsed_packet.get("dest_ip")
+            if not dst_ip or not is_public_ip(dst_ip):
+                return False
+
+        # 6. Unusual Ports
+        if rule.get("unusual_ports"):
+            dst_port = parsed_packet.get("dest_port")
+            if dst_port not in rule["unusual_ports"]:
                 return False
 
         return True
-
-if __name__ == '__main__':
-    # Simple test
-    re_engine = RulesEngine()
-    test_packet = {"protocol": "TCP", "dest_port": 80, "source_ip": "1.2.3.4"}
-    rule = {"name": "Test", "protocol": "TCP", "dest_port": 80}
-    print(f"Match: {re_engine._check_rule(rule, test_packet, {}, {})}")

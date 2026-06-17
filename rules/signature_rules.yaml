@@ -1,0 +1,42 @@
+- name: SQL Injection Attempt
+  severity: Critical
+  description: Potential SQL injection detected in payload.
+  payload_pattern: "(?i)(UNION SELECT|INSERT INTO|UPDATE.*?SET|DELETE FROM|OR '1'='1'|--|#)"
+  mitre_attack: T1190
+  recommended_action: Block source IP and inspect web logs.
+
+- name: Cross-Site Scripting (XSS) Attempt
+  severity: High
+  description: Potential XSS attack detected in payload.
+  payload_pattern: "(?i)(<script>|alert\(|onerror=|onload=|javascript:)"
+  mitre_attack: T1189
+  recommended_action: Sanitize input and inspect application logs.
+
+- name: Log4Shell Exploitation Attempt
+  severity: Critical
+  description: JNDI lookup pattern detected (Log4j vulnerability).
+  payload_pattern: "\\$\\{jndi:(ldap|rmi|dns|nis|iiop|corba|nds|http):"
+  mitre_attack: T1190
+  recommended_action: Immediate patch of vulnerable systems and block source IP.
+
+- name: Reverse Shell Pattern (Bash)
+  severity: Critical
+  description: Common bash reverse shell string detected in payload.
+  payload_pattern: "bash -i >& /dev/tcp/.*?/.*? 0>&1"
+  mitre_attack: T1059.004
+  recommended_action: Terminate connection and investigate source host.
+
+- name: Cobalt Strike Beaconing Pattern
+  severity: Critical
+  description: Potential Cobalt Strike C2 traffic detected.
+  payload_pattern: "(?i)(metadata|cookie:.*?id=|/pixel.gif|/submit.php\?id=)"
+  protocol: TCP
+  mitre_attack: T1071.001
+  recommended_action: Isolate host and perform forensic analysis.
+
+- name: Metasploit Meterpreter Pattern
+  severity: Critical
+  description: Metasploit Meterpreter staging or communication detected.
+  payload_pattern: "(\x00\x00\x00\x0cRECV|\x00\x00\x00\x0cSEND)"
+  mitre_attack: T1105
+  recommended_action: Quarantine host and check for unauthorized software.

@@ -19,7 +19,7 @@ def get_logger(name):
 
 def get_timestamp():
     """ Returns the current UTC timestamp in ISO format """
-    return datetime.datetime.utcnow().isoformat()
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 def is_private_ip(ip_address):
     """ Checks if an IP address is private """

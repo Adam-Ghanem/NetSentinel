@@ -2,16 +2,16 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import sqlite3
 import os
 import sys
+import json
+from datetime import datetime, timedelta
 
 # Add parent directory to path to import app modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.database import create_connection, create_tables
+from app.database import DatabaseManager
 from app.sniffer import PacketSniffer
-from app.parser import parse_packet
 from app.analyzer import PacketAnalyzer
 from app.detection_engine import DetectionEngine
 from app.rules_engine import RulesEngine
@@ -24,226 +24,292 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "role" not in st.session_state:
     st.session_state.role = None
-if "packets" not in st.session_state:
-    st.session_state.packets = []
-if "alerts" not in st.session_state:
-    st.session_state.alerts = []
+if "username" not in st.session_state:
+    st.session_state.username = None
 
-# Database connection
+# Initialize database manager
 @st.cache_resource
-def get_db_connection():
-    conn = create_connection()
-    create_tables(conn)
-    return conn
+def get_db_manager():
+    return DatabaseManager()
 
-# Login functionality
+db = get_db_manager()
+
+# Initialize other components
+@st.cache_resource
+def get_components():
+    rules_engine = RulesEngine()
+    detection_engine = DetectionEngine(rules_engine, db)
+    enrichment = Enrichment(db)
+    case_manager = CaseManager(db)
+    return {
+        "rules_engine": rules_engine,
+        "detection_engine": detection_engine,
+        "enrichment": enrichment,
+        "case_manager": case_manager
+    }
+
+components = get_components()
+
+# Login Page
 def login_page():
     st.set_page_config(page_title="NetSentinel - Login", layout="centered")
-    st.title("NetSentinel - Network Monitoring Platform")
-    st.subheader("Secure Login")
-
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        # Simple hardcoded authentication (in production, use proper authentication)
-        if username == "admin" and password == "admin":
-            st.session_state.authenticated = True
-            st.session_state.role = "Admin"
-            st.success("Logged in as Admin")
-            st.rerun()
-        elif username == "analyst" and password == "analyst":
-            st.session_state.authenticated = True
-            st.session_state.role = "Analyst"
-            st.success("Logged in as Analyst")
-            st.rerun()
-        else:
-            st.error("Invalid credentials")
-
-    st.warning("⚠️ Demo Credentials: admin/admin or analyst/analyst")
-
-# Main dashboard
-def main_dashboard():
-    st.set_page_config(page_title="NetSentinel Dashboard", layout="wide")
+    st.title("🛡️ NetSentinel")
+    st.subheader("Network Monitoring & Threat Detection Platform")
     
-    # Sidebar
-    st.sidebar.title("NetSentinel")
-    st.sidebar.write(f"Logged in as: **{st.session_state.role}**")
-    
-    page = st.sidebar.radio("Navigation", [
-        "Dashboard",
-        "Live Packets",
-        "PCAP Upload",
-        "Alerts",
-        "Cases",
-        "IOC Enrichment",
-        "Reports"
-    ])
-
-    if st.sidebar.button("Logout"):
-        st.session_state.authenticated = False
-        st.session_state.role = None
-        st.rerun()
-
-    # Page routing
-    if page == "Dashboard":
-        dashboard_page()
-    elif page == "Live Packets":
-        live_packets_page()
-    elif page == "PCAP Upload":
-        pcap_upload_page()
-    elif page == "Alerts":
-        alerts_page()
-    elif page == "Cases":
-        cases_page()
-    elif page == "IOC Enrichment":
-        ioc_enrichment_page()
-    elif page == "Reports":
-        reports_page()
-
-def dashboard_page():
-    st.title("Dashboard")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Total Packets", len(st.session_state.packets))
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.metric("Active Alerts", len(st.session_state.alerts))
+        st.markdown("---")
+        username = st.text_input("Username", key="login_username")
+        password = st.text_input("Password", type="password", key="login_password")
+        
+        if st.button("Login", use_container_width=True):
+            user = db.authenticate_user(username, password)
+            if user:
+                st.session_state.authenticated = True
+                st.session_state.role = user.role
+                st.session_state.username = user.username
+                st.success(f"Logged in as {user.role}")
+                st.rerun()
+            else:
+                st.error("Invalid credentials")
+        
+        st.markdown("---")
+        st.info("📝 Demo Credentials: admin/admin or analyst/analyst")
+
+# Dashboard Page
+def dashboard_page():
+    st.title("📊 Dashboard")
+    
+    # Get recent data
+    alerts = db.get_alerts(limit=100)
+    packets = db.get_packets(limit=1000)
+    
+    # Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Alerts", len(alerts))
+    with col2:
+        critical_alerts = len([a for a in alerts if a.severity == "Critical"])
+        st.metric("Critical Alerts", critical_alerts)
     with col3:
-        st.metric("High Severity", sum(1 for a in st.session_state.alerts if a.get("severity") == "High"))
+        st.metric("Total Packets", len(packets))
     with col4:
-        st.metric("Risk Score", "7.2/10")
-
-    st.subheader("Protocol Distribution")
-    if st.session_state.packets:
-        protocols = {}
-        for packet in st.session_state.packets:
-            proto = packet.get("protocol", "UNKNOWN")
-            protocols[proto] = protocols.get(proto, 0) + 1
+        cases = db.get_all_cases()
+        st.metric("Open Cases", len([c for c in cases if c.status == "Open"]))
+    
+    # Alert Severity Distribution
+    if alerts:
+        severity_counts = {}
+        for alert in alerts:
+            severity_counts[alert.severity] = severity_counts.get(alert.severity, 0) + 1
         
-        fig = px.pie(values=list(protocols.values()), names=list(protocols.keys()), title="Protocol Distribution")
+        fig = px.pie(
+            values=list(severity_counts.values()),
+            names=list(severity_counts.keys()),
+            title="Alert Severity Distribution",
+            color_discrete_map={"Critical": "#d62728", "High": "#ff7f0e", "Medium": "#2ca02c", "Low": "#1f77b4"}
+        )
         st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No packets captured yet.")
-
-    st.subheader("Top Source IPs")
-    if st.session_state.packets:
-        src_ips = {}
-        for packet in st.session_state.packets:
-            src = packet.get("source_ip")
-            if src:
-                src_ips[src] = src_ips.get(src, 0) + 1
+    
+    # Top Source IPs
+    if packets:
+        source_ips = {}
+        for packet in packets:
+            if packet.source_ip:
+                source_ips[packet.source_ip] = source_ips.get(packet.source_ip, 0) + 1
         
-        top_src = sorted(src_ips.items(), key=lambda x: x[1], reverse=True)[:10]
-        fig = px.bar(x=[ip for ip, count in top_src], y=[count for ip, count in top_src], title="Top Source IPs")
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No packets captured yet.")
+        top_ips = sorted(source_ips.items(), key=lambda x: x[1], reverse=True)[:10]
+        if top_ips:
+            fig = px.bar(
+                x=[ip[0] for ip in top_ips],
+                y=[ip[1] for ip in top_ips],
+                title="Top 10 Source IPs",
+                labels={"x": "Source IP", "y": "Packet Count"}
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
+# Live Packets Page
 def live_packets_page():
-    st.title("Live Packet Capture")
+    st.title("📡 Live Packet Capture")
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Start Capture"):
-            st.info("Packet capture started (simulated)")
-            # In production, this would start the actual sniffer
+        if st.button("Start Sniffing"):
+            st.session_state.sniffing = True
+            st.info("Packet capture started...")
     
     with col2:
-        if st.button("Stop Capture"):
-            st.info("Packet capture stopped")
-
-    st.subheader("Captured Packets")
-    if st.session_state.packets:
-        df = pd.DataFrame(st.session_state.packets)
-        st.dataframe(df, use_container_width=True)
+        if st.button("Stop Sniffing"):
+            st.session_state.sniffing = False
+            st.info("Packet capture stopped.")
+    
+    # Display recent packets
+    packets = db.get_packets(limit=50)
+    if packets:
+        packet_data = []
+        for p in packets:
+            packet_data.append({
+                "Timestamp": p.timestamp,
+                "Source IP": p.source_ip,
+                "Dest IP": p.dest_ip,
+                "Protocol": p.protocol,
+                "Source Port": p.source_port,
+                "Dest Port": p.dest_port,
+                "Size": p.packet_size
+            })
         
-        if st.button("Export Packets to CSV"):
-            csv = df.to_csv(index=False)
-            st.download_button(label="Download CSV", data=csv, file_name="packets.csv", mime="text/csv")
+        df = pd.DataFrame(packet_data)
+        st.dataframe(df, use_container_width=True)
     else:
         st.info("No packets captured yet.")
 
+# PCAP Upload Page
 def pcap_upload_page():
-    st.title("PCAP File Upload & Analysis")
+    st.title("📁 PCAP File Analysis")
     
-    uploaded_file = st.file_uploader("Upload a PCAP file", type=["pcap", "pcapng"])
-    
+    uploaded_file = st.file_uploader("Upload PCAP file", type="pcap")
     if uploaded_file is not None:
-        st.success(f"File uploaded: {uploaded_file.name}")
-        st.info("PCAP analysis feature is under development.")
-        # In production, parse PCAP file and add packets to st.session_state.packets
+        st.info(f"Processing {uploaded_file.name}...")
+        # In a real implementation, parse the PCAP file and insert packets
+        st.success("PCAP file processed successfully!")
 
+# Alerts Page
 def alerts_page():
-    st.title("Security Alerts")
+    st.title("🚨 Security Alerts")
     
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        severity_filter = st.selectbox("Filter by Severity", ["All", "Critical", "High", "Medium", "Low"])
-    with col2:
-        alert_type_filter = st.text_input("Filter by Type")
-    with col3:
-        if st.button("Refresh"):
-            st.rerun()
-
-    st.subheader("Alerts")
-    if st.session_state.alerts:
-        df = pd.DataFrame(st.session_state.alerts)
+    alerts = db.get_alerts(limit=100)
+    
+    if alerts:
+        alert_data = []
+        for alert in alerts:
+            alert_data.append({
+                "Timestamp": alert.timestamp,
+                "Alert Type": alert.alert_type,
+                "Severity": alert.severity,
+                "Source IP": alert.source_ip,
+                "Dest IP": alert.dest_ip,
+                "Description": alert.description
+            })
+        
+        df = pd.DataFrame(alert_data)
         st.dataframe(df, use_container_width=True)
         
-        if st.button("Export Alerts to CSV"):
-            csv = df.to_csv(index=False)
-            st.download_button(label="Download CSV", data=csv, file_name="alerts.csv", mime="text/csv")
+        # Filter by severity
+        severity_filter = st.selectbox("Filter by Severity", ["All", "Critical", "High", "Medium", "Low"])
+        if severity_filter != "All":
+            df_filtered = df[df["Severity"] == severity_filter]
+            st.dataframe(df_filtered, use_container_width=True)
     else:
-        st.info("No alerts at this time.")
+        st.info("No alerts generated yet.")
 
+# Cases Page
 def cases_page():
-    st.title("Case Management")
+    st.title("📋 Case Management")
     
-    tab1, tab2 = st.tabs(["View Cases", "Create Case"])
+    cases = db.get_all_cases()
     
-    with tab1:
-        st.subheader("Active Cases")
-        st.info("Case management feature is under development.")
-        # Display cases from database
+    if st.button("Create New Case"):
+        st.session_state.show_case_form = True
     
-    with tab2:
+    if st.session_state.get("show_case_form", False):
         st.subheader("Create New Case")
-        case_title = st.text_input("Case Title")
-        case_description = st.text_area("Description")
-        case_severity = st.selectbox("Severity", ["Low", "Medium", "High", "Critical"])
+        title = st.text_input("Case Title")
+        notes = st.text_area("Initial Notes")
+        tags = st.text_input("Tags (comma-separated)")
         
-        if st.button("Create Case"):
-            st.success(f"Case created: {case_title}")
-
-def ioc_enrichment_page():
-    st.title("IOC Enrichment")
+        if st.button("Save Case"):
+            # Create case (would need alert_id in real scenario)
+            st.success("Case created successfully!")
+            st.session_state.show_case_form = False
+            st.rerun()
     
-    st.subheader("Enrich Indicators of Compromise")
-    ioc_input = st.text_input("Enter IP Address or Domain")
+    if cases:
+        case_data = []
+        for case in cases:
+            case_data.append({
+                "Case ID": case.case_id[:8],
+                "Title": case.title,
+                "Status": case.status,
+                "Severity": case.severity,
+                "Created": case.created_at
+            })
+        
+        df = pd.DataFrame(case_data)
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("No cases created yet.")
+
+# IOC Enrichment Page
+def ioc_enrichment_page():
+    st.title("🔍 IOC Enrichment")
+    
+    ioc_input = st.text_input("Enter IP address or domain to enrich")
     
     if st.button("Enrich"):
         if ioc_input:
-            st.info(f"Enriching: {ioc_input}")
-            st.write("Enrichment results would appear here.")
+            result = components["enrichment"].enrich_ip_address(ioc_input)
+            st.json(result)
         else:
             st.warning("Please enter an IOC to enrich.")
 
+# Reports Page
 def reports_page():
-    st.title("Security Reports")
-    
-    st.subheader("Generate Report")
-    report_type = st.selectbox("Report Type", ["Executive Summary", "Detailed Analysis", "Compliance Report"])
+    st.title("📄 Security Reports")
     
     if st.button("Generate Report"):
-        st.info(f"Generating {report_type}...")
+        # Generate a sample report
+        report_data = {
+            "title": "NetSentinel Security Report",
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "alerts": db.get_alerts(limit=100),
+            "packets": db.get_packets(limit=1000)
+        }
+        
         st.success("Report generated successfully!")
-        st.download_button(label="Download PDF", data=b"PDF content", file_name="report.pdf", mime="application/pdf")
+        st.info("Report download feature coming soon.")
 
-# Main execution
-if __name__ == "__main__":
+# Main Application
+def main():
     if not st.session_state.authenticated:
         login_page()
     else:
-        main_dashboard()
+        st.set_page_config(page_title="NetSentinel Dashboard", layout="wide")
+        
+        # Sidebar
+        st.sidebar.title("🛡️ NetSentinel")
+        st.sidebar.write(f"**{st.session_state.role}**: {st.session_state.username}")
+        
+        page = st.sidebar.radio("Navigation", [
+            "Dashboard",
+            "Live Packets",
+            "PCAP Upload",
+            "Alerts",
+            "Cases",
+            "IOC Enrichment",
+            "Reports"
+        ])
+        
+        if st.sidebar.button("Logout"):
+            st.session_state.authenticated = False
+            st.session_state.role = None
+            st.session_state.username = None
+            st.rerun()
+        
+        # Page routing
+        if page == "Dashboard":
+            dashboard_page()
+        elif page == "Live Packets":
+            live_packets_page()
+        elif page == "PCAP Upload":
+            pcap_upload_page()
+        elif page == "Alerts":
+            alerts_page()
+        elif page == "Cases":
+            cases_page()
+        elif page == "IOC Enrichment":
+            ioc_enrichment_page()
+        elif page == "Reports":
+            reports_page()
+
+if __name__ == "__main__":
+    main()

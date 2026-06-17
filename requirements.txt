@@ -5,3 +5,9 @@ plotly
 pyyaml
 ReportLab
 requests
+sqlalchemy
+pydantic
+python-dotenv
+bcrypt
+cryptography
+pydantic-settings

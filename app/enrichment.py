@@ -5,105 +5,62 @@ from app.config import Config
 
 class Enrichment:
     def __init__(self, database_manager):
-        self.database_manager = database_manager
-        self.abuseipdb_api_key = Config.ABUSEIPDB_API_KEY
-        self.virustotal_api_key = Config.VIRUSTOTAL_API_KEY
+        self.db = database_manager
+        self.config = Config()
 
     def enrich_ip_address(self, ip_address):
+        # 1. Check local cache
+        cached = self.db.get_ioc_cache(ip_address)
+        if cached:
+            return json.loads(cached.data)
+
+        # 2. Basic info
         enrichment_data = {
-            "ip_address": ip_address,
+            "indicator": ip_address,
+            "type": "IP",
             "is_private": is_private_ip(ip_address),
             "is_public": is_public_ip(ip_address),
-            "abuseipdb_data": None,
-            "virustotal_data": None
+            "threat_intel": {}
         }
 
-        # Check local cache first
-        cached_data = self.database_manager.get_ioc_cache(ip_address, "ip")
-        if cached_data:
-            enrichment_data.update(json.loads(cached_data["data"]))
-            return enrichment_data
+        # 3. External APIs (if keys available)
+        if enrichment_data["is_public"]:
+            if self.config.ABUSEIPDB_API_KEY:
+                intel = self._query_abuseipdb(ip_address)
+                if intel: enrichment_data["threat_intel"]["abuseipdb"] = intel
+            
+            if self.config.VIRUSTOTAL_API_KEY:
+                intel = self._query_virustotal(ip_address)
+                if intel: enrichment_data["threat_intel"]["virustotal"] = intel
 
-        if self.abuseipdb_api_key and enrichment_data["is_public"]:
-            abuse_data = self._query_abuseipdb(ip_address)
-            if abuse_data:
-                enrichment_data["abuseipdb_data"] = abuse_data
+        # 4. Save to cache
+        self.db.insert_ioc_cache({
+            "indicator": ip_address,
+            "type": "IP",
+            "data": json.dumps(enrichment_data)
+        })
 
-        if self.virustotal_api_key and enrichment_data["is_public"]:
-            vt_data = self._query_virustotal(ip_address)
-            if vt_data:
-                enrichment_data["virustotal_data"] = vt_data
-
-        # Cache the results
-        self.database_manager.insert_ioc_cache(ip_address, "ip", json.dumps(enrichment_data))
-        
         return enrichment_data
 
     def _query_abuseipdb(self, ip_address):
-        if not self.abuseipdb_api_key:
-            return None
-        url = f"https://api.abuseipdb.com/api/v2/check?ipAddress={ip_address}&maxAgeInDays=90"
-        headers = {
-            "Accept": "application/json",
-            "Key": self.abuseipdb_api_key
-        }
+        url = 'https://api.abuseipdb.com/api/v2/check'
+        params = {'ipAddress': ip_address, 'maxAgeInDays': '90'}
+        headers = {'Accept': 'application/json', 'Key': self.config.ABUSEIPDB_API_KEY}
         try:
-            response = requests.get(url, headers=headers, timeout=5)
-            response.raise_for_status()
-            return response.json()["data"]
-        except requests.exceptions.RequestException as e:
-            print(f"Error querying AbuseIPDB for {ip_address}: {e}")
-            return None
+            response = requests.get(url, headers=headers, params=params, timeout=5)
+            if response.status_code == 200:
+                return response.json().get("data")
+        except Exception:
+            pass
+        return None
 
     def _query_virustotal(self, ip_address):
-        if not self.virustotal_api_key:
-            return None
-        url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip_address}"
-        headers = {
-            "x-apikey": self.virustotal_api_key
-        }
+        url = f'https://www.virustotal.com/api/v3/ip_addresses/{ip_address}'
+        headers = {'x-apikey': self.config.VIRUSTOTAL_API_KEY}
         try:
             response = requests.get(url, headers=headers, timeout=5)
-            response.raise_for_status()
-            return response.json()["data"]
-        except requests.exceptions.RequestException as e:
-            print(f"Error querying VirusTotal for {ip_address}: {e}")
-            return None
-
-if __name__ == '__main__':
-    # Dummy DatabaseManager for testing
-    class MockDatabaseManager:
-        def __init__(self):
-            self.cache = {}
-
-        def get_ioc_cache(self, indicator, type):
-            return self.cache.get((indicator, type))
-
-        def insert_ioc_cache(self, indicator, type, data):
-            self.cache[(indicator, type)] = {"indicator": indicator, "type": type, "last_checked": get_timestamp(), "data": data}
-            print(f"[Mock DB] Cached {indicator}")
-
-    mock_db = MockDatabaseManager()
-    enricher = Enrichment(mock_db)
-
-    # Test private IP
-    private_ip = "192.168.1.1"
-    print(f"\nEnriching private IP: {private_ip}")
-    result_private = enricher.enrich_ip_address(private_ip)
-    print(json.dumps(result_private, indent=2))
-
-    # Test public IP (without API keys)
-    public_ip = "8.8.8.8"
-    print(f"\nEnriching public IP: {public_ip}")
-    result_public = enricher.enrich_ip_address(public_ip)
-    print(json.dumps(result_public, indent=2))
-
-    # Test with cached data
-    print(f"\nEnriching public IP again (should use cache): {public_ip}")
-    result_public_cached = enricher.enrich_ip_address(public_ip)
-    print(json.dumps(result_public_cached, indent=2))
-
-    # To test with actual API keys, set them as environment variables before running:
-    # export ABUSEIPDB_API_KEY="YOUR_ABUSEIPDB_KEY"
-    # export VIRUSTOTAL_API_KEY="YOUR_VIRUSTOTAL_KEY"
-    # Then run this script.
+            if response.status_code == 200:
+                return response.json().get("data")
+        except Exception:
+            pass
+        return None

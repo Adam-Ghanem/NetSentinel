@@ -20,7 +20,7 @@ class PacketSniffer:
             timestamp = datetime.datetime.now()
             parsed = parse_packet(packet, timestamp.isoformat())
             
-            # 1. Save to DB
+            # 1. Save to DB with DPI Payloads
             self.db.add_packet({
                 "timestamp": timestamp,
                 "source_mac": parsed.get("source_mac"),
@@ -34,7 +34,9 @@ class PacketSniffer:
                 "tcp_flags": parsed.get("tcp_flags"),
                 "dns_query": parsed.get("dns_query"),
                 "http_host": parsed.get("http_host"),
-                "http_path": parsed.get("http_path")
+                "http_path": parsed.get("http_path"),
+                "payload_raw": parsed.get("payload_raw"),
+                "payload_printable": parsed.get("payload_printable")
             })
 
             # 2. Analyze
@@ -50,14 +52,11 @@ class PacketSniffer:
 
     def start_sniffing(self, iface=None, count=0):
         if self.sniff_thread and self.sniff_thread.is_alive():
-            logger.warning("Sniffing already in progress.")
             return
-
         self.stop_sniffing_event.clear()
         self.sniff_thread = threading.Thread(target=self._sniff_loop, args=(iface, count))
         self.sniff_thread.daemon = True
         self.sniff_thread.start()
-        logger.info(f"Started sniffing on interface {iface if iface else 'default'}")
 
     def _sniff_loop(self, iface, count):
         try:
@@ -72,19 +71,14 @@ class PacketSniffer:
         self.stop_sniffing_event.set()
         if self.sniff_thread and self.sniff_thread.is_alive():
             self.sniff_thread.join(timeout=2)
-        logger.info("Stopped sniffing.")
 
     def process_pcap(self, pcap_path):
-        """ Processes a PCAP file offline """
         if not os.path.exists(pcap_path):
-            logger.error(f"PCAP file not found: {pcap_path}")
-            return
-        
+            return 0
         try:
             packets = rdpcap(pcap_path)
             for packet in packets:
                 self._packet_handler(packet)
-            logger.info(f"Processed {len(packets)} packets from {pcap_path}")
             return len(packets)
         except Exception as e:
             logger.error(f"Error processing PCAP: {e}")

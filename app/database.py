@@ -24,21 +24,8 @@ class PacketModel(Base):
     dns_query = Column(String)
     http_host = Column(String)
     http_path = Column(String)
-
-class ConnectionModel(Base):
-    __tablename__ = 'connections'
-    id = Column(Integer, primary_key=True)
-    conn_id = Column(String, unique=True, nullable=False)
-    source_ip = Column(String, nullable=False, index=True)
-    dest_ip = Column(String, nullable=False, index=True)
-    source_port = Column(Integer)
-    dest_port = Column(Integer)
-    protocol = Column(String)
-    service_guess = Column(String)
-    duration = Column(Float)
-    bytes_sent = Column(Integer)
-    bytes_received = Column(Integer)
-    connection_state = Column(String)
+    payload_raw = Column(Text)
+    payload_printable = Column(Text)
 
 class AlertModel(Base):
     __tablename__ = 'alerts'
@@ -67,14 +54,6 @@ class CaseModel(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     alert = relationship("AlertModel")
 
-class IOCCacheModel(Base):
-    __tablename__ = 'ioc_cache'
-    id = Column(Integer, primary_key=True)
-    indicator = Column(String, unique=True, nullable=False, index=True)
-    type = Column(String, nullable=False)
-    last_checked = Column(DateTime, default=datetime.datetime.utcnow)
-    data = Column(Text)
-
 class UserModel(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
@@ -92,7 +71,6 @@ class DatabaseManager:
     def get_session(self):
         return self.Session()
 
-    # Packet Methods
     def add_packet(self, packet_data):
         session = self.get_session()
         try:
@@ -113,7 +91,6 @@ class DatabaseManager:
         finally:
             session.close()
 
-    # Alert Methods
     def insert_alert(self, alert_data):
         session = self.get_session()
         try:
@@ -134,21 +111,6 @@ class DatabaseManager:
         finally:
             session.close()
 
-    # Case Methods
-    def insert_case(self, case_data):
-        session = self.get_session()
-        try:
-            if 'id' in case_data: del case_data['id']
-            case = CaseModel(**case_data)
-            session.add(case)
-            session.commit()
-            return case
-        except Exception as e:
-            session.rollback()
-            raise e
-        finally:
-            session.close()
-
     def get_all_cases(self):
         session = self.get_session()
         try:
@@ -156,49 +118,6 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def update_case(self, case_id, update_data):
-        session = self.get_session()
-        try:
-            case = session.query(CaseModel).filter_by(case_id=case_id).first()
-            if case:
-                for key, value in update_data.items():
-                    setattr(case, key, value)
-                session.commit()
-                return case
-            return None
-        except Exception as e:
-            session.rollback()
-            raise e
-        finally:
-            session.close()
-
-    # IOC Cache Methods
-    def get_ioc_cache(self, indicator):
-        session = self.get_session()
-        try:
-            return session.query(IOCCacheModel).filter_by(indicator=indicator).first()
-        finally:
-            session.close()
-
-    def insert_ioc_cache(self, ioc_data):
-        session = self.get_session()
-        try:
-            existing = session.query(IOCCacheModel).filter_by(indicator=ioc_data['indicator']).first()
-            if existing:
-                for key, value in ioc_data.items():
-                    setattr(existing, key, value)
-                existing.last_checked = datetime.datetime.utcnow()
-            else:
-                ioc = IOCCacheModel(**ioc_data)
-                session.add(ioc)
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            raise e
-        finally:
-            session.close()
-
-    # User Methods
     def create_user(self, username, password, role='Analyst'):
         session = self.get_session()
         try:
@@ -225,15 +144,9 @@ class DatabaseManager:
 
 if __name__ == '__main__':
     db = DatabaseManager()
-    print("Database initialized.")
-    # Create default users if they don't exist
     if not db.authenticate_user("admin", "admin"):
-        try:
-            db.create_user("admin", "admin", role="Admin")
-            print("Default admin created.")
+        try: db.create_user("admin", "admin", role="Admin")
         except: pass
     if not db.authenticate_user("analyst", "analyst"):
-        try:
-            db.create_user("analyst", "analyst", role="Analyst")
-            print("Default analyst created.")
+        try: db.create_user("analyst", "analyst", role="Analyst")
         except: pass

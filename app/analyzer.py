@@ -1,5 +1,6 @@
 import time
 import hashlib
+import numpy as np
 from app.utils import get_logger
 
 logger = get_logger(__name__)
@@ -22,7 +23,10 @@ class PacketAnalyzer:
         # 2. Update Connection Tracking
         self._update_connections(parsed_packet)
 
-        # 3. Periodic Cleanup (every 5 minutes)
+        # 3. Detect Advanced Patterns (Beaconing, Shells)
+        self._detect_advanced_patterns(src_ip)
+
+        # 4. Periodic Cleanup
         if time.time() - self.last_cleanup > 300:
             self._cleanup_old_connections()
             self.last_cleanup = time.time()
@@ -38,7 +42,10 @@ class PacketAnalyzer:
                 "start_time": time.time(),
                 "dns_queries": 0,
                 "syn_packets": 0,
-                "connection_history": [] # list of timestamps for interval analysis
+                "connection_history": [],
+                "payload_sizes": [],
+                "is_suspicious": False,
+                "threat_score": 0
             }
         
         stats = self.traffic_stats[src_ip]
@@ -61,9 +68,12 @@ class PacketAnalyzer:
             stats["syn_packets"] += 1
             
         stats["connection_history"].append(time.time())
-        # Keep only last 100 connections for analysis
-        if len(stats["connection_history"]) > 100:
+        stats["payload_sizes"].append(packet.get("packet_size", 0))
+        
+        # Keep sliding window
+        if len(stats["connection_history"]) > 200:
             stats["connection_history"].pop(0)
+            stats["payload_sizes"].pop(0)
 
     def _update_connections(self, packet):
         src_ip = packet.get("source_ip")
@@ -75,7 +85,6 @@ class PacketAnalyzer:
         if not all([src_ip, dst_ip, proto]):
             return
 
-        # Build 5-tuple key
         conn_key = (src_ip, dst_ip, src_port, dst_port, proto)
         
         if conn_key not in self.connections:
@@ -92,30 +101,45 @@ class PacketAnalyzer:
                 "bytes_sent": 0,
                 "bytes_received": 0,
                 "packets": 0,
-                "state": "ESTABLISHED"
+                "state": "ESTABLISHED",
+                "history": []
             }
         
         conn = self.connections[conn_key]
         conn["last_seen"] = time.time()
         conn["packets"] += 1
         conn["bytes_sent"] += packet.get("packet_size", 0)
-        
-        # In a real NDR, we'd handle TCP state machine here
-        if packet.get("tcp_flags") == "F" or packet.get("tcp_flags") == "R":
-            conn["state"] = "CLOSED"
+        conn["history"].append(time.time())
+
+    def _detect_advanced_patterns(self, src_ip):
+        stats = self.traffic_stats.get(src_ip)
+        if not stats or len(stats["connection_history"]) < 10:
+            return
+
+        # 1. Beaconing Detection (Interval Variance)
+        history = stats["connection_history"]
+        intervals = np.diff(history)
+        if len(intervals) > 5:
+            std_dev = np.std(intervals)
+            if std_dev < 0.5: # Very consistent timing
+                stats["threat_score"] += 20
+                logger.info(f"Potential Beaconing detected from {src_ip} (StdDev: {std_dev:.4f})")
+
+        # 2. Reverse Shell Detection (Small, frequent payloads)
+        payloads = stats["payload_sizes"]
+        if len(payloads) > 20:
+            avg_size = np.mean(payloads)
+            if 40 < avg_size < 150: # Typical command/response size
+                stats["threat_score"] += 15
+                logger.info(f"Suspicious payload pattern from {src_ip} (Avg Size: {avg_size:.2f})")
 
     def _cleanup_old_connections(self, timeout=3600):
         current_time = time.time()
-        to_delete = []
-        for key, conn in self.connections.items():
-            if current_time - conn["last_seen"] > timeout:
-                # Optionally persist finalized connection to DB here
-                to_delete.append(key)
-        
+        to_delete = [key for key, conn in self.connections.items() if current_time - conn["last_seen"] > timeout]
         for key in to_delete:
             del self.connections[key]
-        
-        logger.info(f"Cleaned up {len(to_delete)} stale connections.")
+        if to_delete:
+            logger.info(f"Cleaned up {len(to_delete)} stale connections.")
 
     def get_traffic_stats(self, src_ip):
         return self.traffic_stats.get(src_ip, {})

@@ -52,44 +52,45 @@ class RulesEngine:
         if rule.get("arp_op") and parsed_packet.get("arp_op") != rule["arp_op"]:
             return False
 
-        # 2. DNS Pattern
+        # 2. Payload Signature Matching (DPI)
+        if rule.get("payload_pattern"):
+            payload = parsed_packet.get("payload_printable")
+            if not payload:
+                return False
+            if not re.search(rule["payload_pattern"], payload):
+                return False
+
+        # 3. DNS Pattern
         if rule.get("dns_query_pattern") and parsed_packet.get("dns_query"):
             if not re.search(rule["dns_query_pattern"], parsed_packet["dns_query"]):
                 return False
         elif rule.get("dns_query_pattern") and not parsed_packet.get("dns_query"):
             return False
 
-        # 3. Stateful / Traffic Stats Checks
+        # 4. Stateful / Traffic Stats Checks
         src_ip = parsed_packet.get("source_ip")
         stats = traffic_stats.get(src_ip, {}) if src_ip else {}
         
-        time_window = rule.get("time_window_seconds", 60)
         current_time = time.time()
 
-        # Filter stats for time window if possible (simplified here)
         if stats:
-            # Port Scan Detection
             if rule.get("min_unique_ports"):
                 if len(stats.get("dest_ports", {})) < rule["min_unique_ports"]:
                     return False
 
-            # High SYN Packet Count
             if rule.get("min_syn_packets"):
                 if stats.get("syn_packets", 0) < rule["min_syn_packets"]:
                     return False
 
-            # DNS Flood
             if rule.get("min_dns_queries"):
                 if stats.get("dns_queries", 0) < rule["min_dns_queries"]:
                     return False
 
-            # High Traffic Volume
             if rule.get("min_bytes_per_second"):
                 duration = max(1, current_time - stats.get("start_time", current_time))
                 if (stats.get("total_bytes", 0) / duration) < rule["min_bytes_per_second"]:
                     return False
 
-            # Beaconing Detection (simplified interval variance check)
             if rule.get("interval_variance_threshold"):
                 history = stats.get("connection_history", [])
                 if len(history) < 5:
@@ -100,13 +101,13 @@ class RulesEngine:
                 if variance > rule["interval_variance_threshold"]:
                     return False
 
-        # 4. External IP Check
+        # 5. External IP Check
         if rule.get("is_external_ip"):
             dst_ip = parsed_packet.get("dest_ip")
             if not dst_ip or not is_public_ip(dst_ip):
                 return False
 
-        # 5. Unusual Ports
+        # 6. Unusual Ports
         if rule.get("unusual_ports"):
             dst_port = parsed_packet.get("dest_port")
             if dst_port not in rule["unusual_ports"]:

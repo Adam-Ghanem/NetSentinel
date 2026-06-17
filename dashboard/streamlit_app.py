@@ -1,14 +1,12 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import os
 import sys
-import json
-import tempfile
 import time
-import asyncio
-from datetime import datetime, timedelta, timezone
+import networkx as nx
+from pyvis.network import Network
+import streamlit.components.v1 as components
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,173 +17,116 @@ from app.analyzer import PacketAnalyzer
 from app.detection_engine import DetectionEngine
 from app.rules_engine import RulesEngine
 from app.soar import SOARManager
-from app.engine import NetSentinelEngine
-from app.utils import get_logger
-
-logger = get_logger(__name__)
 
 # --- UI CONFIG ---
-st.set_page_config(
-    page_title="NetSentinel Elite | Enterprise NDR",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="NetSentinel Ultra | Security Platform", page_icon="🛡️", layout="wide")
 
-# Professional "Tech-Noir" Enterprise CSS
 st.markdown("""
     <style>
-    .main { background-color: #05070a; color: #e0e0e0; font-family: 'Inter', sans-serif; }
-    .stMetric { background-color: #0d1117; padding: 25px; border-radius: 8px; border-top: 4px solid #00ff00; }
-    .stDataFrame { border: 1px solid #30363d; }
-    h1, h2, h3 { color: #ffffff !important; font-weight: 700; }
-    .stButton>button { background-color: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; }
-    .stButton>button:hover { border-color: #00ff00; color: #00ff00; }
-    .sidebar .sidebar-content { background-color: #0d1117; }
-    .status-active { color: #00ff00; font-weight: bold; }
-    .status-inactive { color: #ff4b4b; font-weight: bold; }
+    .main { background-color: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .stMetric { background-color: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; }
+    h1, h2, h3 { color: #58a6ff !important; }
+    .stButton>button { background-color: #238636; color: white; border: none; width: 100%; }
+    .stButton>button:hover { background-color: #2ea043; }
     </style>
     """, unsafe_allow_html=True)
-
-# --- INITIALIZATION ---
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-if "engine_running" not in st.session_state:
-    st.session_state.engine_running = False
 
 @st.cache_resource
 def get_db(): return DatabaseManager()
 
 @st.cache_resource
-def get_components(_db):
+def get_comp(_db):
     re = RulesEngine()
     analyzer = PacketAnalyzer(_db)
     de = DetectionEngine(re, _db)
     sniffer = PacketSniffer(_db, analyzer, de)
     soar = SOARManager(_db)
-    engine = NetSentinelEngine(_db, analyzer, de)
-    return {
-        "rules_engine": re, "analyzer": analyzer, "detection_engine": de,
-        "sniffer": sniffer, "soar": soar, "engine": engine
-    }
+    return {"re": re, "analyzer": analyzer, "de": de, "sniffer": sniffer, "soar": soar}
 
 db = get_db()
-comp = get_components(db)
+comp = get_comp(db)
 
 # --- PAGES ---
-def dashboard_page():
-    st.title("🛡️ ENTERPRISE COMMAND CENTER")
+def overview_page():
+    st.title("🌐 PLATFORM OVERVIEW")
     
-    # Engine Status Bar
-    status_class = "status-active" if st.session_state.engine_running else "status-inactive"
-    status_text = "OPERATIONAL" if st.session_state.engine_running else "OFFLINE"
-    st.markdown(f"ENGINE STATUS: <span class='{status_class}'>{status_text}</span>", unsafe_allow_html=True)
-    
-    alerts = db.get_alerts(limit=500)
-    packets = db.get_packets(limit=1000)
-    
-    # Elite Metrics
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("INTEL MATCHES", len([a for a in alerts if a.alert_type == "Threat Intel Match"]))
-    m2.metric("JA3 ANOMALIES", len([a for a in alerts if "JA3" in a.alert_type]))
-    m3.metric("SOAR ACTIONS", len(comp["soar"].get_blocked_ips()))
-    m4.metric("SYSTEM LOAD", f"{len(packets)} pps")
+    alerts = db.get_alerts(limit=1000)
+    m1.metric("ML ANOMALIES", len([a for a in alerts if "ML" in a.description]))
+    m2.metric("THREAT INTEL", len([a for a in alerts if "Intel" in a.alert_type]))
+    m3.metric("FILES CARVED", len(os.listdir("extracted_files")) if os.path.exists("extracted_files") else 0)
+    m4.metric("API STATUS", "ACTIVE (PORT 8000)")
     
     st.markdown("---")
     
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        st.subheader("📊 THREAT TIMELINE")
-        if alerts:
-            df_a = pd.DataFrame([{ "Time": a.timestamp, "Severity": a.severity } for a in alerts])
-            fig = px.histogram(df_a, x="Time", color="Severity", barmode="group", template="plotly_dark", color_discrete_map={"Critical": "#ff0000", "High": "#ff4b4b", "Medium": "#ffa500", "Low": "#00ff00"})
-            st.plotly_chart(fig, use_container_width=True)
-            
-    with c2:
-        st.subheader("🌐 TOP ATTACK VECTORS")
-        if alerts:
-            df_v = pd.DataFrame([{ "Type": a.alert_type } for a in alerts])
-            fig = px.pie(df_v, names="Type", hole=0.5, template="plotly_dark")
-            st.plotly_chart(fig, use_container_width=True)
+    # Network Graph
+    st.subheader("🕸️ REAL-TIME NETWORK TOPOLOGY")
+    conns = comp["analyzer"].get_connections()
+    if conns:
+        G = nx.Graph()
+        for c in conns[:50]: # Limit for performance
+            G.add_edge(c["source_ip"], c["dest_ip"], weight=c["packets"])
+        
+        net = Network(height="400px", width="100%", bgcolor="#0d1117", font_color="white")
+        net.from_nx(G)
+        path = "network_graph.html"
+        net.save_graph(path)
+        with open(path, 'r', encoding='utf-8') as f:
+            components.html(f.read(), height=450)
+    else:
+        st.info("No network data to visualize yet.")
 
-def elite_forensics_page():
-    st.title("🔬 ELITE FORENSIC ANALYSIS")
-    
-    t1, t2, t3 = st.tabs(["TLS/JA3 Inspection", "Threat Intel Sync", "DPI Payload Explorer"])
+def forensics_page():
+    st.title("🔬 ULTRA FORENSICS")
+    t1, t2 = st.tabs(["ML Anomaly Detection", "File Carving Explorer"])
     
     with t1:
-        st.subheader("Encrypted Traffic Fingerprinting")
-        packets = db.get_packets(limit=500)
-        tls_pkts = [p for p in packets if p.ja3_hash]
-        if tls_pkts:
-            df_ja3 = pd.DataFrame([{
-                "Time": p.timestamp, "Source": p.source_ip, "JA3 Hash": p.ja3_hash, "TLS Ver": p.tls_version
-            } for p in tls_pkts])
-            st.dataframe(df_ja3, use_container_width=True)
-        else:
-            st.info("No TLS/JA3 data captured yet.")
+        st.subheader("Isolation Forest Anomaly Scores")
+        stats = comp["analyzer"].get_all_traffic_stats()
+        if stats:
+            df_ml = pd.DataFrame([{
+                "Host": ip, "Threat Score": s["threat_score"], "Packets": s["total_packets"]
+            } for ip, s in stats.items()])
+            st.bar_chart(df_ml.set_index("Host")["Threat Score"])
             
     with t2:
-        st.subheader("Global Threat Intelligence")
-        if st.button("🔄 SYNC PROFESSIONAL FEEDS"):
-            comp["detection_engine"].intel.sync_otx()
-            st.success("Indicators of Compromise (IOCs) Synchronized.")
-        
-        iocs = comp["detection_engine"].intel.iocs
-        st.write(f"Currently tracking **{len(iocs['ips'])}** malicious IPs and **{len(iocs['domains'])}** C2 domains.")
-        st.json(iocs)
+        st.subheader("Extracted Files from HTTP Traffic")
+        if os.path.exists("extracted_files"):
+            files = os.listdir("extracted_files")
+            if files:
+                for f in files:
+                    st.write(f"📄 `{f}`")
+                    with open(f"extracted_files/{f}", "rb") as file:
+                        st.download_button(f"Download {f}", file, file_name=f)
+            else:
+                st.info("No files carved yet.")
 
-    with t3:
-        st.subheader("Deep Packet Inspection")
-        packets = db.get_packets(limit=100)
-        payloads = [p for p in packets if p.payload_printable]
-        if payloads:
-            for p in payloads[:10]:
-                with st.expander(f"PKT {p.id} | {p.source_ip} -> {p.dest_ip}"):
-                    st.code(p.payload_printable)
-
-# --- MAIN APP ---
 def main():
-    if not st.session_state.authenticated:
-        # Simple Login for Demo
-        st.title("🛡️ NETSENTINEL ELITE")
-        user = st.text_input("Operator ID")
-        pwd = st.text_input("Access Key", type="password")
-        if st.button("AUTHORIZE"):
-            st.session_state.authenticated = True
-            st.rerun()
-    else:
-        if os.path.exists("assets/logo.png"):
-            st.sidebar.image("assets/logo.png", width=120)
-        st.sidebar.title("NETSENTINEL | ELITE")
+    st.sidebar.title("🛡️ NETSENTINEL ULTRA")
+    nav = st.sidebar.radio("PLATFORM NAVIGATION", ["OVERVIEW", "FORENSICS", "ALERTS", "API DOCS"])
+    
+    if st.sidebar.button("START ULTRA ENGINE"):
+        comp["sniffer"].start_sniffing()
+        st.sidebar.success("Engine Running.")
         
-        nav = st.sidebar.radio("COMMAND CENTER", [
-            "DASHBOARD", "ELITE FORENSICS", "ACTIVE ALERTS", "SOAR CONTROL"
-        ])
+    if nav == "OVERVIEW": overview_page()
+    elif nav == "FORENSICS": forensics_page()
+    elif nav == "ALERTS":
+        st.title("🚨 SECURITY EVENTS")
+        alerts = db.get_alerts(limit=100)
+        st.dataframe(pd.DataFrame([{
+            "Time": a.timestamp, "Type": a.alert_type, "Severity": a.severity, "Source": a.source_ip
+        } for a in alerts]), use_container_width=True)
+    elif nav == "API DOCS":
+        st.title("🔌 EXTERNAL INTEGRATION API")
+        st.markdown("""
+        ### REST API Endpoints (FastAPI)
+        - `GET /alerts`: Retrieve all security alerts.
+        - `GET /stats`: System health and performance telemetry.
+        - `POST /soar/block/{ip}`: Programmatically block an IP.
         
-        st.sidebar.markdown("---")
-        if st.sidebar.button("▶️ START ASYNC ENGINE"):
-            st.session_state.engine_running = True
-            comp["sniffer"].start_sniffing()
-        if st.sidebar.button("⏹️ STOP ASYNC ENGINE"):
-            st.session_state.engine_running = False
-            comp["sniffer"].stop_sniffing()
-            
-        if nav == "DASHBOARD": dashboard_page()
-        elif nav == "ELITE FORENSICS": elite_forensics_page()
-        elif nav == "ACTIVE ALERTS":
-            st.title("🚨 REAL-TIME THREAT ALERTS")
-            alerts = db.get_alerts(limit=100)
-            if alerts:
-                st.dataframe(pd.DataFrame([{
-                    "Time": a.timestamp, "Threat": a.alert_type, "Severity": a.severity, "Source": a.source_ip, "Target": a.dest_ip
-                } for a in alerts]), use_container_width=True)
-        elif nav == "SOAR CONTROL":
-            st.title("🛠️ SOAR: AUTOMATED RESPONSE")
-            blocked = comp["soar"].get_blocked_ips()
-            st.write(f"Currently blocking **{len(blocked)}** hosts.")
-            for ip in blocked:
-                st.error(f"BLOCKED: {ip}")
+        **Base URL:** `http://localhost:8000`
+        """)
 
 if __name__ == "__main__":
     main()

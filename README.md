@@ -1,4 +1,8 @@
-# 🛡️ NetSentinel: Cyber Ops NDR & Forensic Platform
+<p align="center">
+  <img src="assets/banner_realistic.png" alt="NetSentinel Banner" width="100%">
+</p>
+
+# <img src="assets/logo.png" width="48" height="48" valign="middle"> NetSentinel: Cyber Ops NDR & Forensic Platform
 
 NetSentinel is a professional-grade, "mferge3" (explosive) Network Detection and Response (NDR) platform designed for senior cybersecurity engineers and pentesters. It combines deep packet inspection (DPI), advanced traffic pattern analysis, and automated security orchestration (SOAR) into a high-tech "Cyber Ops" command center.
 

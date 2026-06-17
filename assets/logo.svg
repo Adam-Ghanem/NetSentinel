@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="NetSentinel logo">
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff162d"/>
+      <stop offset="1" stop-color="#970014"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="60%">
+      <stop offset="0" stop-color="#ff2a3c" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#ff2a3c" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="#050505"/>
+  <circle cx="512" cy="456" r="470" fill="url(#glow)"/>
+
+  <g fill="none" stroke="url(#shield)" stroke-linejoin="round" stroke-linecap="round" filter="url(#softGlow)">
+    <path d="M512 73 L625 162 L855 202 L782 250 L890 305 L874 512 C849 660 746 810 512 920 C278 810 175 660 150 512 L134 305 L242 250 L169 202 L399 162 Z" stroke-width="34"/>
+    <path d="M512 116 L512 237" stroke-width="18"/>
+    <path d="M512 237 L344 349 L352 462 L454 552 L493 735" stroke-width="26"/>
+    <path d="M512 237 L680 349 L672 462 L570 552 L531 735" stroke-width="26"/>
+    <path d="M355 425 L452 499" stroke-width="22"/>
+    <path d="M669 425 L572 499" stroke-width="22"/>
+    <path d="M512 735 L512 910" stroke-width="14"/>
+  </g>
+
+  <g fill="none" stroke="#ff162d" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" filter="url(#softGlow)">
+    <path d="M252 274 L252 330 L190 372 L235 464 L178 520 L262 576 L354 650 L440 720 L512 760"/>
+    <path d="M772 274 L772 330 L834 372 L789 464 L846 520 L762 576 L670 650 L584 720 L512 760"/>
+    <path d="M512 760 L512 840"/>
+    <circle cx="252" cy="274" r="16" fill="#ff162d"/>
+    <circle cx="252" cy="330" r="14" fill="#ff162d"/>
+    <circle cx="190" cy="372" r="22"/>
+    <circle cx="235" cy="464" r="14" fill="#ff162d"/>
+    <circle cx="178" cy="520" r="18"/>
+    <circle cx="262" cy="576" r="12" fill="#ff162d"/>
+    <circle cx="354" cy="650" r="27"/>
+    <circle cx="440" cy="720" r="13" fill="#ff162d"/>
+    <circle cx="772" cy="274" r="16" fill="#ff162d"/>
+    <circle cx="772" cy="330" r="14" fill="#ff162d"/>
+    <circle cx="834" cy="372" r="22"/>
+    <circle cx="789" cy="464" r="14" fill="#ff162d"/>
+    <circle cx="846" cy="520" r="18"/>
+    <circle cx="762" cy="576" r="12" fill="#ff162d"/>
+    <circle cx="670" cy="650" r="27"/>
+    <circle cx="584" cy="720" r="13" fill="#ff162d"/>
+    <circle cx="512" cy="760" r="14" fill="#ff162d"/>
+    <circle cx="512" cy="840" r="25"/>
+  </g>
+
+  <path d="M488 355 L512 760 L536 355 L512 405 Z" fill="#111820" opacity="0.9"/>
+</svg>

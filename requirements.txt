@@ -11,3 +11,5 @@ python-dotenv
 bcrypt
 cryptography
 pydantic-settings
+networkx
+pyvis

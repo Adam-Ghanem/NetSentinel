@@ -1,0 +1,30 @@
+# Python caches and tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# Virtual environments
+.venv/
+venv/
+
+# Local configuration and secrets
+.env
+*.pem
+*.key
+
+# Runtime data
+*.db
+*.db-*
+*.log
+reports/
+extracted_files/
+network_graph.html
+rules/intel_cache.json
+assets/*.png
+tests/expert_sample.pcap
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/

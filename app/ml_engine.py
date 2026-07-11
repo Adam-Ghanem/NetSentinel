@@ -1,22 +1,20 @@
 import numpy as np
 from sklearn.ensemble import IsolationForest
-import pandas as pd
+
 from app.utils import get_logger
 
 logger = get_logger(__name__)
 
 class MLEngine:
-    """
-    Ultra-Expert ML Engine.
-    Uses Isolation Forest for unsupervised anomaly detection on traffic patterns.
-    """
+    """Use Isolation Forest for local traffic-baseline anomaly detection."""
+
     def __init__(self):
         self.model = IsolationForest(contamination=0.05, random_state=42)
         self.is_trained = False
         self.feature_history = []
 
     def prepare_features(self, stats):
-        """ Extracts numerical features from traffic stats for ML """
+        """Extract numerical features from traffic statistics."""
         return [
             stats.get("total_packets", 0),
             stats.get("total_bytes", 0),
@@ -27,9 +25,9 @@ class MLEngine:
         ]
 
     def train_model(self, all_stats):
-        """ Trains the model on current traffic baseline """
+        """Train the model when enough hosts are available for a baseline."""
         data = [self.prepare_features(s) for s in all_stats.values()]
-        if len(data) < 10: # Minimum data to train
+        if len(data) < 10:
             return False
             
         X = np.array(data)
@@ -39,14 +37,13 @@ class MLEngine:
         return True
 
     def predict_anomaly(self, stats):
-        """ Predicts if a host's behavior is an anomaly """
+        """Return whether the trained model marks the host statistics as anomalous."""
         if not self.is_trained:
             return False
             
         X = np.array([self.prepare_features(stats)])
         prediction = self.model.predict(X)
-        # -1 is anomaly, 1 is normal
         is_anomaly = prediction[0] == -1
         if is_anomaly:
-            logger.warning(f"ML: Anomaly detected for host behavior.")
+            logger.warning("ML anomaly detected for host behavior.")
         return is_anomaly

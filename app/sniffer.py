@@ -20,7 +20,6 @@ class PacketSniffer:
             timestamp = datetime.datetime.now()
             parsed = parse_packet(packet, timestamp.isoformat())
             
-            # 1. Save to DB with DPI Payloads
             self.db.add_packet({
                 "timestamp": timestamp,
                 "source_mac": parsed.get("source_mac"),
@@ -32,17 +31,17 @@ class PacketSniffer:
                 "dest_port": parsed.get("dest_port"),
                 "packet_size": parsed.get("packet_size"),
                 "tcp_flags": parsed.get("tcp_flags"),
+                "arp_op": parsed.get("arp_op"),
                 "dns_query": parsed.get("dns_query"),
                 "http_host": parsed.get("http_host"),
                 "http_path": parsed.get("http_path"),
                 "payload_raw": parsed.get("payload_raw"),
-                "payload_printable": parsed.get("payload_printable")
+                "payload_printable": parsed.get("payload_printable"),
+                "tls_version": parsed.get("tls_version"),
+                "ja3_hash": parsed.get("ja3_hash"),
             })
 
-            # 2. Analyze
             self.analyzer.analyze_packet(parsed)
-
-            # 3. Detect
             src_ip = parsed.get("source_ip")
             stats = self.analyzer.get_traffic_stats(src_ip) if src_ip else {}
             self.detection_engine.run_detections(parsed, self.analyzer.connections, {src_ip: stats} if src_ip else {})

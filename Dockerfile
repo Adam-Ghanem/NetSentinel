@@ -1,29 +1,27 @@
-# Stage 1: Build dependencies
-FROM python:3.10-slim-buster as builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Stage 2: Final image
-FROM python:3.10-slim-buster
+FROM python:3.12-slim
 
 WORKDIR /app
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Create a non-root user
-RUN useradd -m netsentinel && chown -R netsentinel:netsentinel /app
-USER netsentinel
-
-# Copy installed packages from builder
-COPY --from=builder /home/netsentinel/.local /home/netsentinel/.local
-ENV PATH=/home/netsentinel/.local/bin:$PATH
-
-# Copy application code
+COPY --from=builder /opt/venv /opt/venv
+RUN useradd --create-home --uid 10001 netsentinel \
+    && chown -R netsentinel:netsentinel /app
 COPY --chown=netsentinel:netsentinel . .
+USER netsentinel
 
 EXPOSE 8501
 
-# Python-based healthcheck to avoid dependency on curl
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')" || exit 1
 

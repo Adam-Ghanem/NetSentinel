@@ -8,15 +8,6 @@
   recommended_action: "Investigate source IP for malicious scanning activity. Consider blocking the source IP."
   mitre_attack: "T1046"
 
-- name: "ARP Spoofing Suspicion"
-  protocol: "ARP"
-  arp_op: "is-at"
-  mac_ip_mismatch: True
-  description: "Detects ARP responses where the MAC address does not match the known MAC for the IP, indicating potential ARP spoofing."
-  severity: "Critical"
-  recommended_action: "Isolate the suspected host. Verify ARP tables. Implement static ARP entries."
-  mitre_attack: "T1557.001"
-
 - name: "DNS Flood / Abnormal DNS Request Volume"
   protocol: "UDP"
   dest_port: 53

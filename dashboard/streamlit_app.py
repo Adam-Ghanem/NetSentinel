@@ -2,7 +2,7 @@ import os
 import sys
 import tempfile
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import networkx as nx
 import pandas as pd
@@ -173,7 +173,7 @@ def show_branding():
 
 
 def seed_demo_data(_db):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     demo_packets = [
         {
             "timestamp": now - timedelta(minutes=8),
@@ -299,7 +299,7 @@ def process_pcap_upload(_db, uploaded_file):
             if packet_time is not None:
                 timestamp = datetime.fromtimestamp(float(packet_time))
             else:
-                timestamp = datetime.utcnow()
+                timestamp = datetime.now(timezone.utc)
 
             packet_data = parse_packet(packet, timestamp)
             _db.add_packet(packet_data)

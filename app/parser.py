@@ -21,6 +21,7 @@ def parse_packet(packet, timestamp):
         "dest_port": None,
         "packet_size": len(packet),
         "tcp_flags": None,
+        "arp_op": None,
         "dns_query": None,
         "http_host": None,
         "http_path": None,
@@ -86,5 +87,8 @@ def parse_packet(packet, timestamp):
         packet_data["protocol"] = "ARP"
         packet_data["source_ip"] = packet[ARP].psrc
         packet_data["dest_ip"] = packet[ARP].pdst
+        packet_data["arp_op"] = {1: "who-has", 2: "is-at"}.get(
+            int(packet[ARP].op), str(packet[ARP].op)
+        )
 
     return packet_data

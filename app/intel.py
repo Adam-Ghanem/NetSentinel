@@ -1,47 +1,78 @@
 import requests
 import json
 import os
+
+from app.config import Config
 from app.utils import get_logger
 
 logger = get_logger(__name__)
 
 class ThreatIntel:
-    """
-    Elite Threat Intelligence Module.
-    Syncs Indicators of Compromise (IOCs) from external sources.
-    """
+    """Store local indicators and optionally sync subscribed AlienVault OTX pulses."""
+
     def __init__(self, cache_file="rules/intel_cache.json"):
         self.cache_file = cache_file
         self.iocs = self._load_cache()
 
     def _load_cache(self):
         if os.path.exists(self.cache_file):
-            with open(self.cache_file, "r") as f:
-                return json.load(f)
+            try:
+                with open(self.cache_file, "r", encoding="utf-8") as handle:
+                    cached = json.load(handle)
+                return {
+                    "ips": list(cached.get("ips", [])),
+                    "domains": list(cached.get("domains", [])),
+                    "hashes": list(cached.get("hashes", [])),
+                }
+            except (OSError, ValueError, TypeError) as error:
+                logger.warning("Unable to load threat-intel cache: %s", error)
         return {"ips": [], "domains": [], "hashes": []}
 
     def sync_otx(self, api_key=None):
-        """
-        Simulates syncing with AlienVault OTX or similar professional intel feeds.
-        """
-        logger.info("Syncing with Threat Intel feeds...")
-        # In a real 5-year exp project, we'd use the OTXv2 SDK
-        # For demo purposes, we populate with some known malicious patterns
-        new_iocs = {
-            "ips": ["185.220.101.1", "103.212.69.114", "45.146.164.110"],
-            "domains": ["malware-c2.com", "phishing-login.net", "update-service.xyz"],
-            "hashes": ["5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"]
-        }
-        self.iocs.update(new_iocs)
+        """Sync indicators from OTX when an API key is configured."""
+        token = api_key or Config.OTX_API_KEY
+        if not token:
+            logger.warning("OTX sync skipped because OTX_API_KEY is not configured.")
+            return 0
+
+        response = requests.get(
+            "https://otx.alienvault.com/api/v1/pulses/subscribed",
+            headers={"X-OTX-API-KEY": token},
+            params={"limit": 50},
+            timeout=10,
+        )
+        response.raise_for_status()
+
+        collected = {"ips": set(), "domains": set(), "hashes": set()}
+        for pulse in response.json().get("results", []):
+            for indicator in pulse.get("indicators", []):
+                value = str(indicator.get("indicator", "")).strip()
+                indicator_type = str(indicator.get("type", ""))
+                if not value:
+                    continue
+                if indicator_type in {"IPv4", "IPv6"}:
+                    collected["ips"].add(value)
+                elif indicator_type in {"domain", "hostname"}:
+                    collected["domains"].add(value.lower())
+                elif indicator_type.startswith("FileHash-"):
+                    collected["hashes"].add(value.lower())
+
+        for category, values in collected.items():
+            self.iocs[category] = sorted(set(self.iocs.get(category, [])) | values)
         self._save_cache()
-        logger.info(f"Threat Intel sync complete. {len(self.iocs['ips'])} IPs tracked.")
+        added_count = sum(len(values) for values in collected.values())
+        logger.info("OTX sync complete: %s indicators received.", added_count)
+        return added_count
 
     def _save_cache(self):
-        with open(self.cache_file, "w") as f:
-            json.dump(self.iocs, f)
+        parent = os.path.dirname(self.cache_file)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(self.cache_file, "w", encoding="utf-8") as handle:
+            json.dump(self.iocs, handle, indent=2, sort_keys=True)
 
     def check_ip(self, ip):
-        return ip in self.iocs.get("ips", [])
+        return bool(ip) and ip in self.iocs.get("ips", [])
 
     def check_domain(self, domain):
-        return domain in self.iocs.get("domains", [])
+        return bool(domain) and domain.lower() in self.iocs.get("domains", [])

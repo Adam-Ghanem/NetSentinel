@@ -1,46 +1,40 @@
-from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import FastAPI, Query
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 import datetime
 from app.database import DatabaseManager
-from app.config import Config
 
-app = FastAPI(title="NetSentinel Elite API", version="2.0.0")
+app = FastAPI(title="NetSentinel API", version="0.2.0")
 db = DatabaseManager()
 
 class AlertSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     alert_id: str
     timestamp: datetime.datetime
-    source_ip: str
-    dest_ip: str
+    source_ip: Optional[str] = None
+    dest_ip: Optional[str] = None
     alert_type: str
     severity: str
-    description: str
-    mitre_attack: Optional[str]
+    description: Optional[str] = None
+    mitre_attack: Optional[str] = None
 
 @app.get("/")
 def read_root():
-    return {"status": "operational", "version": "2.0.0", "engine": "NetSentinel Elite"}
+    return {"status": "operational", "version": "0.2.0", "engine": "NetSentinel"}
 
 @app.get("/alerts", response_model=List[AlertSchema])
-def get_alerts(limit: int = 100):
+def get_alerts(limit: int = Query(default=100, ge=1, le=1000)):
     alerts = db.get_alerts(limit=limit)
     return alerts
 
 @app.get("/stats")
 def get_system_stats():
-    packets = db.get_packets(limit=1000)
-    alerts = db.get_alerts(limit=1000)
     return {
-        "total_packets_processed": len(packets),
-        "total_alerts_generated": len(alerts),
-        "critical_alerts": len([a for a in alerts if a.severity == "Critical"])
+        "total_packets_processed": db.count_packets(),
+        "total_alerts_generated": db.count_alerts(),
+        "critical_alerts": db.count_alerts(severity="Critical"),
     }
-
-@app.post("/soar/block/{ip}")
-def block_ip(ip: str):
-    # This would call the SOAR manager
-    return {"message": f"Block request for {ip} received and queued."}
 
 if __name__ == "__main__":
     import uvicorn

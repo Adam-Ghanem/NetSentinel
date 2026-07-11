@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   netsentinel:
     build: .
@@ -7,11 +5,18 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - .:/app
+      - netsentinel-data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=sqlite:///netsentinel.db
+      - DATABASE_URL=sqlite:////app/data/netsentinel.db
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - NET_RAW
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  netsentinel-data:

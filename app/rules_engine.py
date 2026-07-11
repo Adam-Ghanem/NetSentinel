@@ -40,7 +40,6 @@ class RulesEngine:
         return triggered_rules
 
     def _check_rule(self, rule, parsed_packet, connections, traffic_stats):
-        # 1. Basic Filters
         if rule.get("protocol") and parsed_packet.get("protocol") != rule["protocol"]:
             return False
         if rule.get("dest_port") and parsed_packet.get("dest_port") != rule["dest_port"]:
@@ -52,7 +51,6 @@ class RulesEngine:
         if rule.get("arp_op") and parsed_packet.get("arp_op") != rule["arp_op"]:
             return False
 
-        # 2. Payload Signature Matching (DPI)
         if rule.get("payload_pattern"):
             payload = parsed_packet.get("payload_printable")
             if not payload:
@@ -60,54 +58,86 @@ class RulesEngine:
             if not re.search(rule["payload_pattern"], payload):
                 return False
 
-        # 3. DNS Pattern
         if rule.get("dns_query_pattern") and parsed_packet.get("dns_query"):
             if not re.search(rule["dns_query_pattern"], parsed_packet["dns_query"]):
                 return False
         elif rule.get("dns_query_pattern") and not parsed_packet.get("dns_query"):
             return False
 
-        # 4. Stateful / Traffic Stats Checks
         src_ip = parsed_packet.get("source_ip")
         stats = traffic_stats.get(src_ip, {}) if src_ip else {}
-        
         current_time = time.time()
+        window_seconds = max(1, int(rule.get("time_window_seconds", 600)))
+        recent_packets = [
+            item
+            for item in stats.get("recent_packets", [])
+            if current_time - item.get("timestamp", 0) <= window_seconds
+        ]
 
-        if stats:
-            if rule.get("min_unique_ports"):
-                if len(stats.get("dest_ports", {})) < rule["min_unique_ports"]:
-                    return False
+        stateful_fields = {
+            "min_unique_ports",
+            "min_syn_packets",
+            "min_dns_queries",
+            "min_bytes_per_second",
+            "min_connections",
+            "syn_ack_ratio_threshold",
+            "interval_variance_threshold",
+        }
+        if any(field in rule for field in stateful_fields) and not recent_packets:
+            return False
 
-            if rule.get("min_syn_packets"):
-                if stats.get("syn_packets", 0) < rule["min_syn_packets"]:
-                    return False
+        if "min_unique_ports" in rule:
+            unique_ports = {item["dest_port"] for item in recent_packets if item.get("dest_port")}
+            if len(unique_ports) < rule["min_unique_ports"]:
+                return False
 
-            if rule.get("min_dns_queries"):
-                if stats.get("dns_queries", 0) < rule["min_dns_queries"]:
-                    return False
+        syn_packets = sum(item.get("tcp_flags") == "S" for item in recent_packets)
+        if "min_syn_packets" in rule and syn_packets < rule["min_syn_packets"]:
+            return False
 
-            if rule.get("min_bytes_per_second"):
-                duration = max(1, current_time - stats.get("start_time", current_time))
-                if (stats.get("total_bytes", 0) / duration) < rule["min_bytes_per_second"]:
-                    return False
+        if "min_dns_queries" in rule:
+            dns_queries = sum(bool(item.get("dns_query")) for item in recent_packets)
+            if dns_queries < rule["min_dns_queries"]:
+                return False
 
-            if rule.get("interval_variance_threshold"):
-                history = stats.get("connection_history", [])
-                if len(history) < 5:
-                    return False
-                intervals = [history[i] - history[i-1] for i in range(1, len(history))]
-                avg_interval = sum(intervals) / len(intervals)
-                variance = sum((x - avg_interval) ** 2 for x in intervals) / len(intervals)
-                if variance > rule["interval_variance_threshold"]:
-                    return False
+        if "min_connections" in rule:
+            connection_packets = recent_packets
+            destination_ip = parsed_packet.get("dest_ip")
+            if rule.get("is_external_ip") and destination_ip:
+                connection_packets = [
+                    item for item in recent_packets if item.get("dest_ip") == destination_ip
+                ]
+            if len(connection_packets) < rule["min_connections"]:
+                return False
 
-        # 5. External IP Check
+        if "min_bytes_per_second" in rule:
+            total_bytes = sum(item.get("packet_size", 0) for item in recent_packets)
+            first_seen = min(item["timestamp"] for item in recent_packets)
+            duration = max(1, current_time - first_seen)
+            if total_bytes / duration < rule["min_bytes_per_second"]:
+                return False
+
+        if "syn_ack_ratio_threshold" in rule:
+            syn_ack_packets = sum(item.get("tcp_flags") == "SA" for item in recent_packets)
+            ratio = syn_ack_packets / max(1, syn_packets)
+            if ratio >= rule["syn_ack_ratio_threshold"]:
+                return False
+
+        if "interval_variance_threshold" in rule:
+            history = [item["timestamp"] for item in recent_packets]
+            if len(history) < 5:
+                return False
+            intervals = [history[index] - history[index - 1] for index in range(1, len(history))]
+            average = sum(intervals) / len(intervals)
+            variance = sum((value - average) ** 2 for value in intervals) / len(intervals)
+            if variance > rule["interval_variance_threshold"]:
+                return False
+
         if rule.get("is_external_ip"):
             dst_ip = parsed_packet.get("dest_ip")
             if not dst_ip or not is_public_ip(dst_ip):
                 return False
 
-        # 6. Unusual Ports
         if rule.get("unusual_ports"):
             dst_port = parsed_packet.get("dest_port")
             if dst_port not in rule["unusual_ports"]:

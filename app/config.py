@@ -1,16 +1,15 @@
-import os
-from dotenv import load_dotenv
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-load_dotenv()
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///netsentinel.db")
-    ABUSEIPDB_API_KEY: str = os.getenv("ABUSEIPDB_API_KEY", "")
-    VIRUSTOTAL_API_KEY: str = os.getenv("VIRUSTOTAL_API_KEY", "")
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    class Config:
-        env_file = ".env"
+    DATABASE_URL: str = "sqlite:///netsentinel.db"
+    ABUSEIPDB_API_KEY: str = ""
+    VIRUSTOTAL_API_KEY: str = ""
+    OTX_API_KEY: str = ""
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE: str = ""
+
 
 Config = Settings()

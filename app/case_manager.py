@@ -15,8 +15,8 @@ class CaseManager:
             "status": "Open",
             "severity": alert_data.get("severity"),
             "tags": tags,
-            "created_at": datetime.datetime.utcnow(),
-            "updated_at": datetime.datetime.utcnow()
+            "created_at": datetime.datetime.now(datetime.timezone.utc),
+            "updated_at": datetime.datetime.now(datetime.timezone.utc),
         }
         return self.db.insert_case(case_data)
 

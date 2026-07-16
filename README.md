@@ -23,6 +23,7 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - IOC enrichment structure with optional AbuseIPDB and VirusTotal API keys.
 - PDF report generator module using ReportLab.
 - Docker and Docker Compose configuration for local deployment.
+- Automated parser tests and pull-request CI on Python 3.10 and 3.12.
 
 ### Partially Implemented
 
@@ -37,10 +38,11 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - More reliable time-window based detections.
 - Better connection tracking and persistent connection logs.
 - Improved dashboard actions for live collection, case updates, and report export.
-- Unit and integration tests.
-- GitHub Actions for automated testing.
+- Broader unit and integration test coverage.
 - Dependency pinning and stronger Docker health checks.
 - Demo screenshots and sample data.
+
+See [ROADMAP.md](ROADMAP.md) for the prioritized professionalization backlog.
 
 ## Architecture
 
@@ -64,8 +66,12 @@ NetSentinel/
 │   └── default_rules.yaml  # Example detection rules
 ├── data/
 │   └── sample_packets.csv  # Sample packet data
+├── tests/
+│   └── test_parser.py      # Deterministic parser unit tests
 ├── reports/                # Generated reports
 ├── requirements.txt
+├── requirements-dev.txt
+├── pyproject.toml
 ├── Dockerfile
 ├── docker-compose.yml
 └── README.md
@@ -85,6 +91,14 @@ cd NetSentinel
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+```
+
+For development and test tooling:
+
+```bash
+pip install -r requirements-dev.txt
+python -m ruff check app/parser.py tests
+python -m pytest tests/test_parser.py
 ```
 
 Initialize the local database and create demo users:

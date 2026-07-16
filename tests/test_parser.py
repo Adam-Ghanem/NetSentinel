@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 
-from app.parser import parse_packet
 from scapy.all import ARP, DNS, DNSQR, Ether, IP, Raw, TCP, UDP
+
+from app.parser import parse_packet
 
 
 TIMESTAMP = datetime(2026, 1, 1, tzinfo=timezone.utc)

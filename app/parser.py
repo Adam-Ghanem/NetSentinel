@@ -1,4 +1,4 @@
-from scapy.all import Ether, ARP, IP, TCP, UDP, ICMP, DNS, Raw
+from scapy.all import ARP, DNS, Ether, ICMP, IP, Raw, TCP, UDP
 
 try:
     from scapy.layers.tls.all import TLSClientHello

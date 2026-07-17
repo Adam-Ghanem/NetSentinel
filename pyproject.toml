@@ -7,10 +7,7 @@ target-version = "py310"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
-
-[tool.ruff.lint.isort]
-known-first-party = ["app"]
+select = ["E", "F", "B", "UP"]
 
 [tool.ruff.format]
 quote-style = "double"

@@ -1,11 +1,10 @@
+from app.ja3 import generate_ja3
 from scapy.all import ARP, DNS, Ether, ICMP, IP, Raw, TCP, UDP
 
 try:
     from scapy.layers.tls.all import TLSClientHello
 except ImportError:
     TLSClientHello = None
-
-from app.ja3 import generate_ja3
 
 
 def parse_packet(packet, timestamp):

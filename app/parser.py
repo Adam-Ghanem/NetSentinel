@@ -1,5 +1,6 @@
-from app.ja3 import generate_ja3
 from scapy.all import ARP, DNS, Ether, ICMP, IP, Raw, TCP, UDP
+
+from app.ja3 import generate_ja3
 
 try:
     from scapy.layers.tls.all import TLSClientHello

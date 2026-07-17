@@ -53,7 +53,7 @@ class Settings(BaseSettings):
         return normalized
 
     @model_validator(mode="after")
-    def enforce_production_safety(self) -> "Settings":
+    def enforce_production_safety(self) -> Settings:
         if self.ENVIRONMENT == "production" and self.DEMO_MODE:
             raise ValueError("DEMO_MODE cannot be enabled in production")
         return self

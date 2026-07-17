@@ -31,6 +31,9 @@ env/
 logs/
 reports/*.pdf
 
+# Generated security and build artifacts
+*-sbom.json
+
 # Packet captures may contain sensitive network data
 *.pcap
 *.pcapng

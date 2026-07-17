@@ -41,14 +41,19 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt -r requirements-dev.txt
 
+      - name: Validate exact dependency pins
+        run: python scripts/check_dependency_pins.py
+
       - name: Lint covered modules, security tooling, and tests
         run: >-
           python -m ruff check
           app/config.py
           app/enrichment.py
           app/parser.py
+          scripts/check_dependency_pins.py
           scripts/check_secrets.py
           tests/test_config.py
+          tests/test_dependency_pins.py
           tests/test_parser.py
           tests/test_secret_scanner.py
 
@@ -56,6 +61,7 @@ jobs:
         run: >-
           python -m pytest
           tests/test_config.py
+          tests/test_dependency_pins.py
           tests/test_parser.py
           tests/test_secret_scanner.py
 

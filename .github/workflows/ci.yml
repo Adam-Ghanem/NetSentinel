@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  parser-quality:
-    name: Parser quality (Python ${{ matrix.python-version }})
+  core-quality:
+    name: Core quality (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
@@ -41,8 +41,14 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt -r requirements-dev.txt
 
-      - name: Lint parser and focused parser tests
-        run: python -m ruff check app/parser.py tests/test_parser.py
+      - name: Lint covered modules and tests
+        run: >-
+          python -m ruff check
+          app/config.py
+          app/enrichment.py
+          app/parser.py
+          tests/test_config.py
+          tests/test_parser.py
 
-      - name: Run parser tests
-        run: python -m pytest tests/test_parser.py
+      - name: Run focused unit tests
+        run: python -m pytest tests/test_config.py tests/test_parser.py

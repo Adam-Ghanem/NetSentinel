@@ -23,7 +23,9 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - IOC enrichment structure with optional AbuseIPDB and VirusTotal API keys.
 - PDF report generator module using ReportLab.
 - Docker and Docker Compose configuration for local deployment.
-- Automated parser tests and pull-request CI on Python 3.10 and 3.12.
+- Automated parser and configuration tests on Python 3.10 and 3.12.
+- Typed startup configuration with production safety validation.
+- Repository secret-hygiene scanning and safe environment defaults.
 
 ### Partially Implemented
 
@@ -58,16 +60,20 @@ NetSentinel/
 │   ├── database.py         # SQLAlchemy models and database helper methods
 │   ├── report_generator.py # PDF report generation
 │   ├── case_manager.py     # Case creation and update helpers
-│   ├── config.py           # Environment-based configuration
+│   ├── config.py           # Validated environment configuration
 │   └── utils.py            # Shared utility functions and logging
 ├── dashboard/
 │   └── streamlit_app.py    # Streamlit user interface
 ├── rules/
 │   └── default_rules.yaml  # Example detection rules
+├── scripts/
+│   └── check_secrets.py    # Deterministic repository secret scanner
 ├── data/
 │   └── sample_packets.csv  # Sample packet data
 ├── tests/
-│   └── test_parser.py      # Deterministic parser unit tests
+│   ├── test_config.py
+│   ├── test_parser.py
+│   └── test_secret_scanner.py
 ├── reports/                # Generated reports
 ├── requirements.txt
 ├── requirements-dev.txt
@@ -91,37 +97,46 @@ cd NetSentinel
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 ```
+
+Keep `.env` local. Add real API keys only through your local environment or secret manager; never commit them.
 
 For development and test tooling:
 
 ```bash
 pip install -r requirements-dev.txt
-python -m ruff check app/parser.py tests
-python -m pytest tests/test_parser.py
+python -m ruff check app/config.py app/enrichment.py app/parser.py scripts/check_secrets.py tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
+python -m pytest tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
+python scripts/check_secrets.py .
 ```
 
-Initialize the local database and create demo users:
+Create a local administrator without hardcoded credentials:
 
 ```bash
-python -c "from app.database import DatabaseManager; db = DatabaseManager(); db.create_user('admin', 'admin', role='Admin'); db.create_user('analyst', 'analyst', role='Analyst'); print('Demo users created.')"
+python - <<'PY'
+from getpass import getpass
+
+from app.database import DatabaseManager
+
+username = input("Admin username: ").strip()
+password = getpass("Admin password: ")
+DatabaseManager().create_user(username, password, role="Admin")
+print("Local administrator created.")
+PY
 ```
 
-Demo credentials are intended only for local testing:
+## Security Configuration
 
-```text
-admin / admin
-analyst / analyst
-```
+The checked-in `.env.example` contains only safe defaults and empty secret fields. `DEMO_MODE` is disabled by default and cannot be enabled when `ENVIRONMENT=production`.
 
-Optional `.env` example:
+Before every merge, CI performs three security-related checks:
 
-```env
-ABUSEIPDB_API_KEY=""
-VIRUSTOTAL_API_KEY=""
-DATABASE_URL="sqlite:///netsentinel.db"
-LOG_LEVEL="INFO"
-```
+1. Lints the validated configuration and security scanner.
+2. Runs focused configuration and scanner tests.
+3. Scans supported repository text files for high-confidence credentials, private keys, and non-empty secrets in environment files.
+
+The scanner is a preventive quality gate, not a replacement for credential rotation or a managed secret store. If a real credential is ever committed, revoke and rotate it immediately even after removing it from Git history.
 
 ## Run the Dashboard
 
@@ -152,7 +167,7 @@ Some rule fields in `default_rules.yaml` describe planned stateful behavior. The
 ## Example Workflow
 
 1. Start the dashboard.
-2. Log in with a local demo account.
+2. Log in with a local account.
 3. Review stored metadata.
 4. Review generated alerts.
 5. Create or update investigation cases.

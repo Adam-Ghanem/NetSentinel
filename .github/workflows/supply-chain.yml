@@ -39,7 +39,23 @@ jobs:
           python -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Audit runtime dependency manifest
-        run: python -m pip_audit --strict --requirement requirements.txt
+        id: audit
+        continue-on-error: true
+        run: >-
+          python -m pip_audit
+          --strict
+          --requirement requirements.txt
+          --format json
+          --output pip-audit.json
+
+      - name: Upload dependency audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: netsentinel-pip-audit
+          path: pip-audit.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Generate CycloneDX SBOM
         if: always()
@@ -53,3 +69,9 @@ jobs:
           path: netsentinel-sbom.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Enforce clean dependency audit
+        if: steps.audit.outcome == 'failure'
+        run: |
+          echo "Runtime dependency vulnerabilities were detected. Review the pip-audit artifact."
+          exit 1

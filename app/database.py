@@ -12,6 +12,7 @@ from sqlalchemy import (
     Text,
     create_engine,
     event,
+    inspect,
     text,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
@@ -144,6 +145,48 @@ class DatabaseManager:
             raise
         finally:
             session.close()
+
+    def database_health(self):
+        """Return deterministic connectivity, schema, and integrity diagnostics."""
+        expected_tables = set(Base.metadata.tables)
+        report = {
+            "status": "healthy",
+            "dialect": self.engine.dialect.name,
+            "connectivity": "ok",
+            "schema": "ok",
+            "missing_tables": [],
+        }
+
+        try:
+            with self.engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+                if self.engine.dialect.name == "sqlite":
+                    integrity = connection.execute(text("PRAGMA integrity_check")).scalar_one()
+                    report["integrity"] = integrity
+                    if str(integrity).lower() != "ok":
+                        report["status"] = "degraded"
+        except Exception as exc:
+            report.update(
+                {
+                    "status": "unhealthy",
+                    "connectivity": "failed",
+                    "error": type(exc).__name__,
+                }
+            )
+            return report
+
+        existing_tables = set(inspect(self.engine).get_table_names())
+        missing_tables = sorted(expected_tables - existing_tables)
+        if missing_tables:
+            report.update(
+                {
+                    "status": "degraded",
+                    "schema": "incomplete",
+                    "missing_tables": missing_tables,
+                }
+            )
+
+        return report
 
     def add_packet(self, packet_data):
         with self.transaction() as session:

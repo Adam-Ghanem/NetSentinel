@@ -61,12 +61,16 @@ jobs:
           tests/test_parser.py
           tests/test_secret_scanner.py
 
-      - name: Run focused unit tests
+      - name: Run database transaction tests
+        run: python -m pytest tests/test_database.py
+
+      - name: Run database backup tests
+        run: python -m pytest tests/test_database_backup.py
+
+      - name: Run existing focused unit tests
         run: >-
           python -m pytest
           tests/test_config.py
-          tests/test_database.py
-          tests/test_database_backup.py
           tests/test_dependency_pins.py
           tests/test_parser.py
           tests/test_secret_scanner.py

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a consistent SQLite backup without copying a live database file directly."""
+"""Create a consistent SQLite backup without copying a live database file."""
 
 import argparse
 import sqlite3
@@ -26,7 +26,9 @@ def backup_sqlite_database(source: Path, destination: Path) -> Path:
         with sqlite3.connect(source) as source_connection:
             with sqlite3.connect(temporary) as destination_connection:
                 source_connection.backup(destination_connection)
-                result = destination_connection.execute("PRAGMA integrity_check").fetchone()
+                result = destination_connection.execute(
+                    "PRAGMA integrity_check"
+                ).fetchone()
                 if result is None or result[0] != "ok":
                     raise RuntimeError(f"backup integrity check failed: {result}")
         temporary.replace(destination)
@@ -44,7 +46,11 @@ def default_destination(source: Path) -> Path:
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--database", type=Path, help="SQLite database path; defaults to DATABASE_URL")
+    parser.add_argument(
+        "--database",
+        type=Path,
+        help="SQLite database path; defaults to DATABASE_URL",
+    )
     parser.add_argument("--output", type=Path, help="Backup output path")
     return parser.parse_args()
 
@@ -54,7 +60,8 @@ def main():
     configured_path = DatabaseManager().sqlite_database_path()
     source = args.database or configured_path
     if source is None:
-        raise SystemExit("DATABASE_URL is not a file-backed SQLite database; pass --database")
+        message = "DATABASE_URL is not a file-backed SQLite database; pass --database"
+        raise SystemExit(message)
 
     destination = args.output or default_destination(source)
     result = backup_sqlite_database(source, destination)

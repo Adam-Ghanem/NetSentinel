@@ -3,7 +3,17 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import bcrypt
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text, create_engine, event, text
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    event,
+    text,
+)
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 from app.config import Config
@@ -58,7 +68,11 @@ class CaseModel(Base):
     severity = Column(String, index=True)
     tags = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow,
+    )
     alert = relationship("AlertModel")
 
 
@@ -96,7 +110,7 @@ class DatabaseManager:
             cursor.close()
 
     def _apply_sqlite_schema_updates(self):
-        """Add newly introduced columns when an older local SQLite database already exists."""
+        """Add newly introduced columns to older local SQLite databases."""
         if not self.db_url.startswith("sqlite"):
             return
 
@@ -109,7 +123,8 @@ class DatabaseManager:
 
         with self.engine.begin() as connection:
             existing_columns = {
-                row[1] for row in connection.execute(text("PRAGMA table_info(packets)"))
+                row[1]
+                for row in connection.execute(text("PRAGMA table_info(packets)"))
             }
             for column_name, column_type in required_packet_columns.items():
                 if column_name not in existing_columns:
@@ -173,7 +188,10 @@ class DatabaseManager:
         if not password:
             raise ValueError("password must not be empty")
 
-        password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        password_hash = bcrypt.hashpw(
+            password.encode("utf-8"),
+            bcrypt.gensalt(),
+        ).decode("utf-8")
         with self.transaction() as session:
             user = UserModel(username=username, password_hash=password_hash, role=role)
             session.add(user)
@@ -182,9 +200,11 @@ class DatabaseManager:
     def authenticate_user(self, username, password):
         with self.Session() as session:
             user = session.query(UserModel).filter_by(username=username.strip()).first()
-            if user and bcrypt.checkpw(password.encode("utf-8"), user.password_hash.encode("utf-8")):
-                return user
-            return None
+            valid_password = user and bcrypt.checkpw(
+                password.encode("utf-8"),
+                user.password_hash.encode("utf-8"),
+            )
+            return user if valid_password else None
 
     def sqlite_database_path(self):
         """Return the local SQLite path, or None for memory/non-SQLite databases."""

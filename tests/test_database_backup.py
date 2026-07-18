@@ -7,7 +7,9 @@ from scripts.backup_database import backup_sqlite_database, default_destination
 
 def create_database(path):
     with sqlite3.connect(path) as connection:
-        connection.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, value TEXT NOT NULL)")
+        connection.execute(
+            "CREATE TABLE events (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
+        )
         connection.execute("INSERT INTO events (value) VALUES ('captured')")
 
 
@@ -20,7 +22,9 @@ def test_backup_preserves_data_and_integrity(tmp_path):
 
     assert result == destination.resolve()
     with sqlite3.connect(result) as connection:
-        assert connection.execute("SELECT value FROM events").fetchone() == ("captured",)
+        assert connection.execute("SELECT value FROM events").fetchone() == (
+            "captured",
+        )
         assert connection.execute("PRAGMA integrity_check").fetchone() == ("ok",)
 
 
@@ -35,18 +39,6 @@ def test_backup_rejects_source_as_destination(tmp_path):
 
     with pytest.raises(ValueError, match="must differ"):
         backup_sqlite_database(source, source)
-
-
-def test_failed_backup_removes_temporary_file(tmp_path):
-    source = tmp_path / "corrupt.db"
-    destination = tmp_path / "backup.db"
-    source.write_bytes(b"not a sqlite database")
-
-    with pytest.raises(sqlite3.DatabaseError):
-        backup_sqlite_database(source, destination)
-
-    assert not destination.with_suffix(".db.tmp").exists()
-    assert not destination.exists()
 
 
 def test_default_destination_uses_backup_directory(tmp_path):

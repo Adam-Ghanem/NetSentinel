@@ -56,6 +56,51 @@ def test_sqlite_file_uses_wal_and_busy_timeout(database):
     assert busy_timeout >= 5000
 
 
+def test_database_health_reports_healthy_sqlite(database):
+    report = database.database_health()
+
+    assert report == {
+        "status": "healthy",
+        "dialect": "sqlite",
+        "connectivity": "ok",
+        "schema": "ok",
+        "missing_tables": [],
+        "integrity": "ok",
+    }
+
+
+def test_database_health_reports_missing_tables(database):
+    with database.engine.begin() as connection:
+        connection.execute(text("DROP TABLE cases"))
+
+    report = database.database_health()
+
+    assert report["status"] == "degraded"
+    assert report["schema"] == "incomplete"
+    assert report["missing_tables"] == ["cases"]
+    assert report["connectivity"] == "ok"
+
+
+def test_database_health_handles_connectivity_failure(database):
+    database.engine.dispose()
+    database.engine = database.engine.execution_options()
+
+    original_connect = database.engine.connect
+
+    def fail_connect():
+        raise RuntimeError("database unavailable")
+
+    database.engine.connect = fail_connect
+    try:
+        report = database.database_health()
+    finally:
+        database.engine.connect = original_connect
+
+    assert report["status"] == "unhealthy"
+    assert report["connectivity"] == "failed"
+    assert report["error"] == "RuntimeError"
+
+
 @pytest.mark.parametrize("limit", [0, -1, 10_001])
 def test_query_limit_rejects_out_of_range_values(database, limit):
     with pytest.raises(ValueError, match="between 1 and 10000"):

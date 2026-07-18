@@ -52,6 +52,7 @@ jobs:
           app/enrichment.py
           app/parser.py
           scripts/backup_database.py
+          scripts/check_database_health.py
           scripts/check_dependency_pins.py
           scripts/check_secrets.py
           tests/test_config.py
@@ -61,8 +62,11 @@ jobs:
           tests/test_parser.py
           tests/test_secret_scanner.py
 
-      - name: Run database transaction tests
+      - name: Run database transaction and health tests
         run: python -m pytest tests/test_database.py
+
+      - name: Verify default database health
+        run: python scripts/check_database_health.py --database-url sqlite:///:memory:
 
       - name: Run database backup tests
         run: python -m pytest tests/test_database_backup.py

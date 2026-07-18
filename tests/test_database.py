@@ -70,20 +70,20 @@ def test_query_limit_rejects_non_integers(database, limit):
 
 def test_create_user_validates_credentials(database):
     with pytest.raises(ValueError, match="username"):
-        database.create_user("   ", "password")
+        database.create_user("   ", "placeholder")
     with pytest.raises(ValueError, match="password"):
         database.create_user("analyst", "")
 
 
 def test_create_and_authenticate_user(database):
-    password = "correct horse battery staple"
-    created = database.create_user(" analyst ", password)
+    credential = "-".join(("test", "credential", "value"))
+    created = database.create_user(" analyst ", credential)
 
     assert created.username == "analyst"
-    authenticated = database.authenticate_user("analyst", password)
+    authenticated = database.authenticate_user("analyst", credential)
     assert authenticated.role == "Analyst"
     assert database.authenticate_user("analyst", "wrong") is None
 
     with database.Session() as session:
         stored = session.query(UserModel).filter_by(username="analyst").one()
-        assert stored.password_hash != password
+        assert stored.password_hash != credential

@@ -48,22 +48,36 @@ jobs:
         run: >-
           python -m ruff check
           app/config.py
+          app/database.py
           app/enrichment.py
           app/parser.py
+          scripts/backup_database.py
           scripts/check_dependency_pins.py
           scripts/check_secrets.py
           tests/test_config.py
+          tests/test_database.py
+          tests/test_database_backup.py
           tests/test_dependency_pins.py
           tests/test_parser.py
           tests/test_secret_scanner.py
 
-      - name: Run focused unit tests
-        run: >-
-          python -m pytest
-          tests/test_config.py
-          tests/test_dependency_pins.py
-          tests/test_parser.py
-          tests/test_secret_scanner.py
+      - name: Run database transaction tests
+        run: python -m pytest tests/test_database.py
+
+      - name: Run database backup tests
+        run: python -m pytest tests/test_database_backup.py
+
+      - name: Run configuration tests
+        run: python -m pytest tests/test_config.py
+
+      - name: Run dependency policy tests
+        run: python -m pytest tests/test_dependency_pins.py
+
+      - name: Run parser tests
+        run: python -m pytest tests/test_parser.py
+
+      - name: Run secret scanner tests
+        run: python -m pytest tests/test_secret_scanner.py
 
       - name: Scan repository for committed secrets
         run: python scripts/check_secrets.py .

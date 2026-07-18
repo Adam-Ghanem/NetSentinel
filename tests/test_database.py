@@ -76,12 +76,14 @@ def test_create_user_validates_credentials(database):
 
 
 def test_create_and_authenticate_user(database):
-    created = database.create_user(" analyst ", "correct horse battery staple")
+    password = "correct horse battery staple"
+    created = database.create_user(" analyst ", password)
 
     assert created.username == "analyst"
-    assert database.authenticate_user("analyst", "correct horse battery staple").role == "Analyst"
+    authenticated = database.authenticate_user("analyst", password)
+    assert authenticated.role == "Analyst"
     assert database.authenticate_user("analyst", "wrong") is None
 
     with database.Session() as session:
         stored = session.query(UserModel).filter_by(username="analyst").one()
-        assert stored.password_hash != "correct horse battery staple"
+        assert stored.password_hash != password

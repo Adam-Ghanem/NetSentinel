@@ -37,20 +37,16 @@ def test_backup_rejects_source_as_destination(tmp_path):
         backup_sqlite_database(source, source)
 
 
-def test_failed_backup_removes_temporary_file(tmp_path, monkeypatch):
-    source = tmp_path / "source.db"
+def test_failed_backup_removes_temporary_file(tmp_path):
+    source = tmp_path / "corrupt.db"
     destination = tmp_path / "backup.db"
-    create_database(source)
+    source.write_bytes(b"not a sqlite database")
 
-    def fail_backup(_self, _target):
-        raise sqlite3.DatabaseError("simulated failure")
-
-    monkeypatch.setattr(sqlite3.Connection, "backup", fail_backup)
-
-    with pytest.raises(sqlite3.DatabaseError, match="simulated failure"):
+    with pytest.raises(sqlite3.DatabaseError):
         backup_sqlite_database(source, destination)
 
     assert not destination.with_suffix(".db.tmp").exists()
+    assert not destination.exists()
 
 
 def test_default_destination_uses_backup_directory(tmp_path):

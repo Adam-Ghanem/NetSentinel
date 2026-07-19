@@ -51,15 +51,18 @@ jobs:
           app/database.py
           app/enrichment.py
           app/parser.py
+          app/schema.py
           scripts/backup_database.py
           scripts/check_database_health.py
           scripts/check_dependency_pins.py
+          scripts/check_schema_version.py
           scripts/check_secrets.py
           tests/test_config.py
           tests/test_database.py
           tests/test_database_backup.py
           tests/test_dependency_pins.py
           tests/test_parser.py
+          tests/test_schema_version.py
           tests/test_secret_scanner.py
 
       - name: Run database transaction and health tests
@@ -70,6 +73,9 @@ jobs:
 
       - name: Run database backup tests
         run: python -m pytest tests/test_database_backup.py
+
+      - name: Run schema version tests
+        run: python -m pytest tests/test_schema_version.py
 
       - name: Run configuration tests
         run: python -m pytest tests/test_config.py

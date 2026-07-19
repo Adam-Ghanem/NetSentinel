@@ -2,7 +2,7 @@ import json
 
 from alembic import command
 from alembic.config import Config as AlembicConfig
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 
 from scripts.check_database_readiness import check_database_readiness, main
 
@@ -44,15 +44,16 @@ def test_readiness_blocks_incomplete_schema(tmp_path):
 
 def test_readiness_does_not_create_schema(tmp_path):
     database_path = tmp_path / "empty.db"
-    report = check_database_readiness(f"sqlite:///{database_path}")
+    database_url = f"sqlite:///{database_path}"
+    report = check_database_readiness(database_url)
 
     assert report["status"] == "blocked"
     assert report["ready"] is False
     assert report["schema"] == "incomplete"
     assert report["schema_version"] == "unversioned"
 
-    engine = create_engine(f"sqlite:///{database_path}")
-    assert set(engine.dialect.get_table_names(engine.connect())) == set()
+    engine = create_engine(database_url)
+    assert inspect(engine).get_table_names() == []
     engine.dispose()
 
 

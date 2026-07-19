@@ -10,12 +10,15 @@ Set `DATABASE_URL`, then apply all migrations:
 python -m alembic -c alembic.ini upgrade head
 ```
 
-After migration, verify both operational checks:
+After migration, verify all operational checks:
 
 ```bash
 python scripts/check_database_health.py
 python scripts/check_schema_version.py
+python scripts/check_migration_drift.py
 ```
+
+The drift check returns JSON and exits successfully only when SQLAlchemy metadata matches the reviewed Alembic history. It intentionally sanitizes unexpected failures instead of printing connection strings or raw database errors.
 
 ## Upgrade an existing deployment
 
@@ -24,17 +27,25 @@ python scripts/check_schema_version.py
 3. Record the current Alembic revision with `python -m alembic current`.
 4. Review the pending SQL with `python -m alembic upgrade head --sql` where the target dialect supports offline generation.
 5. Apply `python -m alembic upgrade head` in a maintenance window.
-6. Run database health and schema compatibility checks.
-7. Resume writes only when both checks pass.
+6. Run database health, schema compatibility, and migration drift checks.
+7. Resume writes only when every check passes.
 
 ## Migration authoring rules
 
 - One coherent schema change per revision.
 - Every revision must have deterministic upgrade tests.
+- Model changes that affect persisted schema must include a reviewed migration in the same pull request.
+- CI must run `scripts/check_migration_drift.py` against a newly migrated database on every supported Python version.
 - Data backfills must be bounded, restartable, and observable.
 - Never embed credentials or production URLs in migration files.
 - Avoid runtime model imports inside revision files; revisions must remain stable as application code evolves.
 - Update `CURRENT_SCHEMA_VERSION` only when compatibility requirements change, and seed the matching value in the reviewed migration.
+
+## Drift response
+
+A `drift_detected` result means application metadata contains schema operations that are absent from migration history. Do not bypass the gate or stamp the database. Generate and review a focused revision, inspect the upgrade operations, add deterministic tests, and rerun the check.
+
+An `unhealthy` result means verification could not complete safely. Treat it as an operational failure: validate configuration, database reachability, migration state, and CI logs without copying credentials into issues or pull requests.
 
 ## Rollback policy
 

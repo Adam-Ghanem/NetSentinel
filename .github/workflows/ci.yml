@@ -44,7 +44,7 @@ jobs:
       - name: Validate exact dependency pins
         run: python scripts/check_dependency_pins.py
 
-      - name: Lint covered modules, security tooling, and tests
+      - name: Lint covered modules, security tooling, migrations, and tests
         run: >-
           python -m ruff check
           app/config.py
@@ -52,6 +52,8 @@ jobs:
           app/enrichment.py
           app/parser.py
           app/schema.py
+          migrations/env.py
+          migrations/versions/0001_baseline.py
           scripts/backup_database.py
           scripts/check_database_health.py
           scripts/check_dependency_pins.py
@@ -61,6 +63,7 @@ jobs:
           tests/test_database.py
           tests/test_database_backup.py
           tests/test_dependency_pins.py
+          tests/test_migrations.py
           tests/test_parser.py
           tests/test_schema_version.py
           tests/test_secret_scanner.py
@@ -76,6 +79,9 @@ jobs:
 
       - name: Run schema version tests
         run: python -m pytest tests/test_schema_version.py
+
+      - name: Run migration tests
+        run: python -m pytest tests/test_migrations.py
 
       - name: Run configuration tests
         run: python -m pytest tests/test_config.py

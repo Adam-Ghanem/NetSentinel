@@ -1,14 +1,52 @@
 import sqlite3
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 
 from app.database import AlertModel, DatabaseManager, UserModel
 
 
 @pytest.fixture
 def database(tmp_path):
-    return DatabaseManager(f"sqlite:///{tmp_path / 'netsentinel-test.db'}")
+    return DatabaseManager(
+        f"sqlite:///{tmp_path / 'netsentinel-test.db'}",
+        auto_create_schema=True,
+    )
+
+
+def test_manager_can_connect_without_creating_schema(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'runtime-only.db'}"
+    manager = DatabaseManager(database_url, auto_create_schema=False)
+
+    assert inspect(manager.engine).get_table_names() == []
+    report = manager.database_health()
+    assert report["status"] == "degraded"
+    assert report["schema"] == "incomplete"
+    assert sorted(report["missing_tables"]) == ["alerts", "cases", "packets", "users"]
+
+
+def test_explicit_bootstrap_creates_local_schema(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'bootstrap.db'}"
+    manager = DatabaseManager(database_url, auto_create_schema=False)
+
+    manager.bootstrap_schema()
+
+    assert set(inspect(manager.engine).get_table_names()) == {
+        "alerts",
+        "cases",
+        "packets",
+        "users",
+    }
+
+
+def test_production_runtime_rejects_schema_bootstrap(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.database.Config.ENVIRONMENT", "production")
+
+    with pytest.raises(RuntimeError, match="disabled in production"):
+        DatabaseManager(
+            f"sqlite:///{tmp_path / 'production.db'}",
+            auto_create_schema=True,
+        )
 
 
 def test_transaction_commits_and_returns_detached_values(database):

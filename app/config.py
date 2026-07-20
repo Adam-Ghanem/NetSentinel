@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     ENVIRONMENT: Literal["development", "test", "production"] = "development"
     DATABASE_URL: str = "sqlite:///netsentinel.db"
+    AUTO_CREATE_SCHEMA: bool = True
     ABUSEIPDB_API_KEY: str = Field(default="", repr=False)
     VIRUSTOTAL_API_KEY: str = Field(default="", repr=False)
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
@@ -56,6 +57,10 @@ class Settings(BaseSettings):
     def enforce_production_safety(self) -> Settings:
         if self.ENVIRONMENT == "production" and self.DEMO_MODE:
             raise ValueError("DEMO_MODE cannot be enabled in production")
+        if self.ENVIRONMENT == "production" and self.AUTO_CREATE_SCHEMA:
+            raise ValueError(
+                "AUTO_CREATE_SCHEMA must be disabled in production; run Alembic migrations instead"
+            )
         return self
 
 

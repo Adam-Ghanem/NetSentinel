@@ -86,15 +86,30 @@ class UserModel(Base):
 
 
 class DatabaseManager:
-    """Own database initialization and short-lived transactional sessions."""
+    """Own database connections and short-lived transactional sessions."""
 
-    def __init__(self, db_url=None):
+    def __init__(self, db_url=None, auto_create_schema=None):
         self.db_url = db_url or Config.DATABASE_URL
+        self.auto_create_schema = (
+            Config.AUTO_CREATE_SCHEMA
+            if auto_create_schema is None
+            else auto_create_schema
+        )
+        if Config.ENVIRONMENT == "production" and self.auto_create_schema:
+            raise RuntimeError(
+                "schema auto-creation is disabled in production; run Alembic migrations"
+            )
+
         self.engine = create_engine(self.db_url, pool_pre_ping=True)
         self._configure_sqlite()
+        if self.auto_create_schema:
+            self.bootstrap_schema()
+        self.Session = sessionmaker(bind=self.engine, expire_on_commit=False)
+
+    def bootstrap_schema(self):
+        """Create local-development schema explicitly; never use for production."""
         Base.metadata.create_all(self.engine)
         self._apply_sqlite_schema_updates()
-        self.Session = sessionmaker(bind=self.engine, expire_on_commit=False)
 
     def _configure_sqlite(self):
         if not self.db_url.startswith("sqlite"):

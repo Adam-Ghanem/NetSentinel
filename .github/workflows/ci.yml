@@ -50,6 +50,7 @@ jobs:
           app/config.py
           app/database.py
           app/enrichment.py
+          app/legacy_adoption.py
           app/parser.py
           app/schema.py
           migrations/env.py
@@ -57,6 +58,7 @@ jobs:
           scripts/backup_database.py
           scripts/check_database_health.py
           scripts/check_dependency_pins.py
+          scripts/check_legacy_database.py
           scripts/check_migration_drift.py
           scripts/check_schema_version.py
           scripts/check_secrets.py
@@ -64,6 +66,7 @@ jobs:
           tests/test_database.py
           tests/test_database_backup.py
           tests/test_dependency_pins.py
+          tests/test_legacy_adoption.py
           tests/test_migration_drift.py
           tests/test_migrations.py
           tests/test_parser.py
@@ -87,6 +90,9 @@ jobs:
 
       - name: Run migration drift tests
         run: python -m pytest tests/test_migration_drift.py
+
+      - name: Run legacy adoption tests
+        run: python -m pytest tests/test_legacy_adoption.py
 
       - name: Verify migrations match application metadata
         env:

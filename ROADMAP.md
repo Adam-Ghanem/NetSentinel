@@ -4,11 +4,11 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 ## P0 — Quality and Safety Foundations
 
-1. **Automated quality gate** — add focused unit tests, linting, and GitHub Actions; expand coverage module by module.
-2. **Configuration validation and secrets hygiene** — typed settings, startup validation, `.env.example`, safe defaults, and secret scanning.
-3. **Dependency reproducibility and scanning** — pin runtime dependencies, add update policy, vulnerability scanning, and SBOM generation.
-4. **Database reliability** — transactional error handling, schema migration strategy, deterministic test database fixtures, and backup guidance.
-5. **Docker reliability** — non-root container, health checks, graceful shutdown, persistent volumes, and reproducible builds.
+1. **Automated quality gate** — delivered: focused unit tests, linting, and multi-version GitHub Actions; continue expanding coverage module by module.
+2. **Configuration validation and secrets hygiene** — delivered: typed settings, startup validation, safe `.env.example`, secret scanning, and production schema-bootstrap restrictions.
+3. **Dependency reproducibility and scanning** — delivered: exact pins, update policy, vulnerability scanning, and SBOM generation.
+4. **Database reliability** — delivered foundation: transaction handling, backups, Alembic migrations, schema compatibility, drift detection, readiness checks, migration-only production startup, legacy adoption validation, and a composed pre-deployment gate.
+5. **Docker reliability** — next P0 focus: non-root container, health checks, graceful shutdown, persistent volumes, and reproducible builds.
 
 ## P1 — Detection and SOC Workflow
 
@@ -22,7 +22,7 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 11. **Service boundary/API quality** — separate collection, detection, persistence, and UI concerns; add versioned schemas and consistent errors.
 12. **Structured logging** — correlation IDs, safe field redaction, actionable event names, and configurable output.
-13. **Health and readiness checks** — database, rule loading, storage, and optional provider status.
+13. **Health and readiness checks** — extend the delivered database checks to rule loading, storage capacity, and optional provider status.
 14. **Metrics** — ingestion rate, parse failures, alert counts, rule latency, enrichment latency, and queue/backpressure signals.
 15. **Performance controls** — bounded queues, batch writes, indexes, profiling fixtures, and documented capacity limits.
 
@@ -36,4 +36,4 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 ## Current Focus
 
-The first delivered slice establishes a parser quality gate with deterministic tests and CI on supported Python versions. The next recommended item is configuration validation and secrets hygiene because configuration failures and accidental credential exposure are high-impact risks for a security project.
+The database safety foundation now supports migration-first production startup and a fail-closed pre-deployment verification command. The next highest-impact slice is Docker reliability so the verified application can run in a least-privilege, observable, and reproducible container environment.

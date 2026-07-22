@@ -14,14 +14,18 @@ def test_dockerfile_uses_supported_non_root_runtime():
     assert "USER netsentinel:netsentinel" in dockerfile
     assert "STOPSIGNAL SIGTERM" in dockerfile
     assert "COPY --from=builder /opt/venv /opt/venv" in dockerfile
+    assert "COPY --chown=netsentinel:netsentinel scripts ./scripts" in dockerfile
     assert "HEALTHCHECK" in dockerfile
 
 
-def test_compose_defaults_to_least_privilege_runtime():
-    compose = yaml.safe_load(
+def load_compose():
+    return yaml.safe_load(
         (REPOSITORY_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     )
-    service = compose["services"]["netsentinel"]
+
+
+def test_compose_defaults_to_least_privilege_runtime():
+    service = load_compose()["services"]["netsentinel"]
 
     assert service["read_only"] is True
     assert service["cap_drop"] == ["ALL"]
@@ -34,9 +38,7 @@ def test_compose_defaults_to_least_privilege_runtime():
 
 
 def test_compose_persists_only_declared_runtime_data():
-    compose = yaml.safe_load(
-        (REPOSITORY_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-    )
+    compose = load_compose()
     service = compose["services"]["netsentinel"]
 
     assert service["volumes"] == [
@@ -45,6 +47,20 @@ def test_compose_persists_only_declared_runtime_data():
     ]
     assert set(compose["volumes"]) == {"netsentinel-data", "netsentinel-reports"}
     assert all(".:/app" not in volume for volume in service["volumes"])
+
+
+def test_migration_job_is_explicit_and_least_privilege():
+    migration = load_compose()["services"]["migrate"]
+
+    assert migration["profiles"] == ["operations"]
+    assert migration["command"][:2] == ["python", "scripts/run_migrations.py"]
+    assert migration["restart"] == "no"
+    assert migration["read_only"] is True
+    assert migration["cap_drop"] == ["ALL"]
+    assert "no-new-privileges:true" in migration["security_opt"]
+    assert migration["healthcheck"] == {"disable": True}
+    assert migration["volumes"] == ["netsentinel-data:/data"]
+    assert "ports" not in migration
 
 
 def test_dockerignore_excludes_sensitive_and_generated_files():

@@ -1,4 +1,37 @@
 services:
+  migrate:
+    profiles: ["operations"]
+    build:
+      context: .
+      args:
+        VCS_REF: ${VCS_REF:-development}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+    image: netsentinel:${NETSENTINEL_IMAGE_TAG:-local}
+    init: true
+    command:
+      - python
+      - scripts/run_migrations.py
+      - --database-url
+      - sqlite:////data/netsentinel.db
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      AUTO_CREATE_SCHEMA: "false"
+      DATABASE_URL: sqlite:////data/netsentinel.db
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEMO_MODE: "false"
+    volumes:
+      - netsentinel-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    healthcheck:
+      disable: true
+
   netsentinel:
     build:
       context: .

@@ -70,3 +70,16 @@ def test_dockerignore_excludes_sensitive_and_generated_files():
 
     for expected in {".git", ".env", "*.db", "*.pcap", "tests", "docs"}:
         assert expected in ignored
+
+
+def test_dockerignore_keeps_runtime_copy_sources_available():
+    ignored = set(
+        (REPOSITORY_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    )
+    dockerfile = (REPOSITORY_ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    runtime_sources = {"app", "dashboard", "rules", "migrations", "scripts", "assets"}
+
+    for source in runtime_sources:
+        assert f"COPY --chown=netsentinel:netsentinel {source} ./{source}" in dockerfile
+        assert source not in ignored

@@ -48,9 +48,10 @@ jobs:
         with:
           image-ref: netsentinel:security-scan
           scan-type: image
+          trivy-config: trivy-sbom.yaml
           format: cyclonedx
           output: netsentinel-image-sbom.cdx.json
-          scanners: vuln
+          exit-code: "0"
           skip-setup-trivy: true
 
       - name: Upload image security evidence

@@ -1,0 +1,19 @@
+scan:
+  scanners:
+    - vuln
+  skip-dirs:
+    - .git
+    - .venv
+    - venv
+
+vulnerability:
+  ignore-unfixed: true
+
+format: json
+exit-code: 1
+severity:
+  - HIGH
+  - CRITICAL
+
+cache:
+  dir: .cache/trivy

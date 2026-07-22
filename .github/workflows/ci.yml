@@ -54,12 +54,12 @@ jobs:
           scripts/check_legacy_database.py scripts/check_migration_drift.py
           scripts/check_predeployment.py scripts/check_schema_version.py
           scripts/check_secrets.py scripts/run_migrations.py tests/test_config.py
-          tests/test_container_config.py tests/test_database.py
-          tests/test_database_backup.py tests/test_dependency_pins.py
-          tests/test_legacy_adoption.py tests/test_migration_drift.py
-          tests/test_migration_runner.py tests/test_migrations.py tests/test_parser.py
-          tests/test_predeployment.py tests/test_schema_version.py
-          tests/test_secret_scanner.py
+          tests/test_container_config.py tests/test_container_security_workflow.py
+          tests/test_database.py tests/test_database_backup.py
+          tests/test_dependency_pins.py tests/test_legacy_adoption.py
+          tests/test_migration_drift.py tests/test_migration_runner.py
+          tests/test_migrations.py tests/test_parser.py tests/test_predeployment.py
+          tests/test_schema_version.py tests/test_secret_scanner.py
 
       - name: Run database transaction and health tests
         run: python -m pytest tests/test_database.py
@@ -100,6 +100,9 @@ jobs:
 
       - name: Run container configuration tests
         run: python -m pytest tests/test_container_config.py
+
+      - name: Run container security workflow tests
+        run: python -m pytest tests/test_container_security_workflow.py
 
       - name: Run dependency policy tests
         run: python -m pytest tests/test_dependency_pins.py

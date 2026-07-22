@@ -13,7 +13,8 @@ WORKDIR /build
 COPY requirements.txt ./
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/python -m pip install --upgrade pip \
-    && /opt/venv/bin/python -m pip install --requirement requirements.txt
+    && /opt/venv/bin/python -m pip install --requirement requirements.txt \
+    && /opt/venv/bin/python -m pip uninstall --yes pip setuptools wheel jaraco.context
 
 FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
 
@@ -37,7 +38,11 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
     HOME=/home/netsentinel
 
-RUN groupadd --gid "${APP_GID}" netsentinel \
+RUN apt-get update \
+    && apt-get upgrade --yes --no-install-recommends \
+    && python -m pip uninstall --yes pip setuptools wheel jaraco.context \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid "${APP_GID}" netsentinel \
     && useradd --uid "${APP_UID}" --gid "${APP_GID}" --create-home --shell /usr/sbin/nologin netsentinel \
     && install -d -o netsentinel -g netsentinel /app /data /app/reports
 

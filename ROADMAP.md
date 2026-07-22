@@ -7,12 +7,12 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 1. **Automated quality gate** — delivered: focused unit tests, linting, and multi-version GitHub Actions; continue expanding coverage module by module.
 2. **Configuration validation and secrets hygiene** — delivered: typed settings, startup validation, safe `.env.example`, secret scanning, and production schema-bootstrap restrictions.
 3. **Dependency reproducibility and scanning** — delivered: exact pins, update policy, vulnerability scanning, and SBOM generation.
-4. **Database reliability** — delivered foundation: transaction handling, backups, Alembic migrations, schema compatibility, drift detection, readiness checks, migration-only production startup, legacy adoption validation, and a composed pre-deployment gate.
-5. **Docker reliability** — next P0 focus: non-root container, health checks, graceful shutdown, persistent volumes, and reproducible builds.
+4. **Database reliability** — delivered foundation: transaction handling, backups, Alembic migrations, schema compatibility, drift detection, readiness checks, migration-only production startup, legacy adoption validation, a composed pre-deployment gate, and a dedicated migration job.
+5. **Docker reliability and image security** — delivered foundation: non-root runtime, health checks, graceful shutdown, persistent volumes, reproducible builds, fixable high/critical vulnerability gating, and image SBOM evidence. Remaining work: provenance, release signing, and separating the packet sensor from the dashboard.
 
 ## P1 — Detection and SOC Workflow
 
-6. **Typed detection interfaces** — explicit packet, rule, alert, and enrichment models with validated boundaries.
+6. **Typed detection interfaces** — next P1 focus: explicit packet, rule, alert, and enrichment models with validated boundaries.
 7. **Stateful detection engine** — reliable time windows, bounded state, deduplication, suppression, and deterministic tests.
 8. **Detection engineering content** — realistic sample traffic, rule metadata, severity rationale, false-positive guidance, and MITRE ATT&CK mappings.
 9. **Alert enrichment** — normalized IOC context, cache expiry, provider failure handling, confidence fields, and evidence provenance.
@@ -36,4 +36,4 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 ## Current Focus
 
-The database safety foundation now supports migration-first production startup and a fail-closed pre-deployment verification command. The next highest-impact slice is Docker reliability so the verified application can run in a least-privilege, observable, and reproducible container environment.
+The P0 safety foundation now includes migration-first database operations and a hardened, vulnerability-gated runtime image with SBOM evidence. The next highest-impact slice is typed detection interfaces so parser output, rules, alerts, and enrichment can evolve behind explicit validated contracts.

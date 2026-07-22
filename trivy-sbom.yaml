@@ -1,0 +1,12 @@
+scan:
+  scanners:
+    - vuln
+
+vulnerability:
+  ignore-unfixed: false
+
+format: cyclonedx
+exit-code: 0
+
+cache:
+  dir: .cache/trivy

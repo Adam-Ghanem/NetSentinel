@@ -40,6 +40,7 @@ ENV PATH="/opt/venv/bin:${PATH}" \
 
 RUN apt-get update \
     && apt-get upgrade --yes --no-install-recommends \
+    && python -m pip uninstall --yes pip setuptools wheel jaraco.context \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid "${APP_GID}" netsentinel \
     && useradd --uid "${APP_UID}" --gid "${APP_GID}" --create-home --shell /usr/sbin/nologin netsentinel \

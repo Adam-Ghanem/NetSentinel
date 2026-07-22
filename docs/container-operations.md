@@ -9,7 +9,7 @@ The runtime image:
 - uses Debian Bookworm slim with Python 3.12;
 - installs dependencies into a dedicated virtual environment during a separate build stage;
 - runs as the fixed non-root `netsentinel` user;
-- copies only runtime application paths into the final image;
+- copies only runtime application and reviewed operational paths into the final image;
 - includes OCI source, revision, and build-date labels;
 - exposes a Streamlit health check and uses `SIGTERM` for graceful shutdown.
 
@@ -22,6 +22,8 @@ The default Compose service:
 - persists only the SQLite database and generated reports in named volumes;
 - disables demo mode and automatic schema creation;
 - relies on reviewed Alembic migrations before application startup.
+
+The optional `operations` profile adds a one-shot migration job that uses the same non-root image and database volume without exposing ports or starting the dashboard.
 
 ## Build
 
@@ -38,27 +40,38 @@ docker build \
 
 ## Prepare the persistent database
 
-The application container does not create or mutate the schema automatically. Apply reviewed migrations to the same named volume before starting the dashboard:
+The application container does not create or mutate the schema automatically. Apply reviewed migrations to the shared named volume with the dedicated one-shot job:
 
 ```bash
-docker compose run --rm \
-  --read-only=false \
-  netsentinel \
-  python -m alembic -c alembic.ini upgrade head
+docker compose --profile operations run --rm migrate
 ```
 
-Then verify deployment readiness:
+The migration runner:
+
+- accepts only the reviewed Alembic `head` revision;
+- applies migrations through the project Alembic configuration;
+- runs database readiness checks after the upgrade;
+- returns a non-zero exit code when migration or verification fails;
+- emits a sanitized JSON summary without printing the database URL.
+
+The command is idempotent and can be run again to confirm that the database remains at the reviewed head revision:
 
 ```bash
-docker compose run --rm netsentinel python scripts/check_predeployment.py
+docker compose --profile operations run --rm migrate
 ```
 
-The current minimized runtime image does not include operational scripts. For repository-driven local operations, run the migration and readiness commands from a trusted development environment that points to the persistent database. A dedicated migration image is a follow-up roadmap item.
+After a successful migration, start the dashboard:
+
+```bash
+docker compose up --build -d netsentinel
+```
+
+For production-style deployments, take and verify a backup before running the migration job. Never start application workers after a failed migration or failed readiness result.
 
 ## Start and inspect
 
 ```bash
-docker compose up --build -d
+docker compose up --build -d netsentinel
 docker compose ps
 docker compose logs --follow netsentinel
 ```
@@ -83,8 +96,9 @@ The secure default service has no `NET_RAW` or `NET_ADMIN` capability. Do not gr
 CI validates:
 
 ```bash
-docker compose config --quiet
+docker compose --profile operations config --quiet
 docker build --tag netsentinel:ci .
+docker compose --profile operations run --rm --no-build migrate
 ```
 
-It also verifies the configured non-root user, image health check, least-privilege Compose options, persistent-volume boundaries, and build-context exclusions.
+It also verifies the configured non-root user, image health check, migration-job idempotency, least-privilege Compose options, persistent-volume boundaries, and build-context exclusions.

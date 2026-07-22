@@ -48,6 +48,7 @@ COPY --chown=netsentinel:netsentinel app ./app
 COPY --chown=netsentinel:netsentinel dashboard ./dashboard
 COPY --chown=netsentinel:netsentinel rules ./rules
 COPY --chown=netsentinel:netsentinel migrations ./migrations
+COPY --chown=netsentinel:netsentinel scripts ./scripts
 COPY --chown=netsentinel:netsentinel alembic.ini ./
 COPY --chown=netsentinel:netsentinel assets ./assets
 

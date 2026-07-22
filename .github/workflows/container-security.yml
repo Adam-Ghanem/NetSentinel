@@ -1,0 +1,65 @@
+name: Container Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image-security:
+    name: Image vulnerability and SBOM verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build reviewed runtime image
+        run: >-
+          docker build
+          --label org.opencontainers.image.revision=${{ github.sha }}
+          --tag netsentinel:security-scan
+          .
+
+      - name: Scan image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: netsentinel:security-scan
+          scan-type: image
+          trivy-config: trivy.yaml
+          format: json
+          output: trivy-image-vulnerabilities.json
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Generate CycloneDX image SBOM
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: netsentinel:security-scan
+          scan-type: image
+          format: cyclonedx
+          output: netsentinel-image-sbom.cdx.json
+          scanners: vuln
+          skip-setup-trivy: true
+
+      - name: Upload image security evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: netsentinel-container-security-${{ github.sha }}
+          path: |
+            trivy-image-vulnerabilities.json
+            netsentinel-image-sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 30

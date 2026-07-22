@@ -1,17 +1,43 @@
-version: '3.8'
-
 services:
   netsentinel:
-    build: .
-    container_name: netsentinel
+    build:
+      context: .
+      args:
+        VCS_REF: ${VCS_REF:-development}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+    image: netsentinel:${NETSENTINEL_IMAGE_TAG:-local}
+    init: true
     ports:
-      - "8501:8501"
-    volumes:
-      - .:/app
+      - "127.0.0.1:${NETSENTINEL_PORT:-8501}:8501"
     environment:
-      - PYTHONUNBUFFERED=1
-      - DATABASE_URL=sqlite:///netsentinel.db
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      AUTO_CREATE_SCHEMA: "false"
+      DATABASE_URL: sqlite:////data/netsentinel.db
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEMO_MODE: "false"
+    volumes:
+      - netsentinel-data:/data
+      - netsentinel-reports:/app/reports
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3).read()"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+volumes:
+  netsentinel-data:
+  netsentinel-reports:

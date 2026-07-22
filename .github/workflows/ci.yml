@@ -53,11 +53,12 @@ jobs:
           scripts/check_database_health.py scripts/check_dependency_pins.py
           scripts/check_legacy_database.py scripts/check_migration_drift.py
           scripts/check_predeployment.py scripts/check_schema_version.py
-          scripts/check_secrets.py tests/test_config.py tests/test_database.py
-          tests/test_database_backup.py tests/test_dependency_pins.py
-          tests/test_legacy_adoption.py tests/test_migration_drift.py
-          tests/test_migrations.py tests/test_parser.py tests/test_predeployment.py
-          tests/test_schema_version.py tests/test_secret_scanner.py
+          scripts/check_secrets.py tests/test_config.py tests/test_container_config.py
+          tests/test_database.py tests/test_database_backup.py
+          tests/test_dependency_pins.py tests/test_legacy_adoption.py
+          tests/test_migration_drift.py tests/test_migrations.py tests/test_parser.py
+          tests/test_predeployment.py tests/test_schema_version.py
+          tests/test_secret_scanner.py
 
       - name: Run database transaction and health tests
         run: python -m pytest tests/test_database.py
@@ -93,6 +94,9 @@ jobs:
       - name: Run configuration tests
         run: python -m pytest tests/test_config.py
 
+      - name: Run container configuration tests
+        run: python -m pytest tests/test_container_config.py
+
       - name: Run dependency policy tests
         run: python -m pytest tests/test_dependency_pins.py
 
@@ -104,3 +108,29 @@ jobs:
 
       - name: Scan repository for committed secrets
         run: python scripts/check_secrets.py .
+
+  container-quality:
+    name: Container quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build hardened runtime image
+        run: >-
+          docker build
+          --build-arg VCS_REF=${{ github.sha }}
+          --build-arg BUILD_DATE=ci
+          --tag netsentinel:ci
+          .
+
+      - name: Verify non-root image user
+        run: test "$(docker image inspect netsentinel:ci --format '{{.Config.User}}')" = "netsentinel:netsentinel"
+
+      - name: Verify image healthcheck
+        run: test "$(docker image inspect netsentinel:ci --format '{{json .Config.Healthcheck}}')" != "null"

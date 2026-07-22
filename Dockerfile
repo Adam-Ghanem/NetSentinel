@@ -1,30 +1,63 @@
-# Stage 1: Build dependencies
-FROM python:3.10-slim-buster as builder
+# syntax=docker/dockerfile:1.7
+
+ARG PYTHON_VERSION=3.12.4
+
+FROM python:${PYTHON_VERSION}-slim-bookworm AS builder
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /build
+
+COPY requirements.txt ./
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/python -m pip install --upgrade pip \
+    && /opt/venv/bin/python -m pip install --requirement requirements.txt
+
+FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
+
+ARG APP_UID=10001
+ARG APP_GID=10001
+ARG VCS_REF=unknown
+ARG BUILD_DATE=unknown
+
+LABEL org.opencontainers.image.title="NetSentinel" \
+      org.opencontainers.image.description="Defensive network metadata monitoring and SOC investigation platform" \
+      org.opencontainers.image.source="https://github.com/Adam-Ghanem/NetSentinel" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.created="${BUILD_DATE}"
+
+ENV PATH="/opt/venv/bin:${PATH}" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
+    STREAMLIT_SERVER_PORT=8501 \
+    STREAMLIT_SERVER_HEADLESS=true \
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+    HOME=/home/netsentinel
+
+RUN groupadd --gid "${APP_GID}" netsentinel \
+    && useradd --uid "${APP_UID}" --gid "${APP_GID}" --create-home --shell /usr/sbin/nologin netsentinel \
+    && install -d -o netsentinel -g netsentinel /app /data /app/reports
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Stage 2: Final image
-FROM python:3.10-slim-buster
+COPY --from=builder /opt/venv /opt/venv
+COPY --chown=netsentinel:netsentinel app ./app
+COPY --chown=netsentinel:netsentinel dashboard ./dashboard
+COPY --chown=netsentinel:netsentinel rules ./rules
+COPY --chown=netsentinel:netsentinel migrations ./migrations
+COPY --chown=netsentinel:netsentinel alembic.ini ./
+COPY --chown=netsentinel:netsentinel assets ./assets
 
-WORKDIR /app
-
-# Create a non-root user
-RUN useradd -m netsentinel && chown -R netsentinel:netsentinel /app
-USER netsentinel
-
-# Copy installed packages from builder
-COPY --from=builder /home/netsentinel/.local /home/netsentinel/.local
-ENV PATH=/home/netsentinel/.local/bin:$PATH
-
-# Copy application code
-COPY --chown=netsentinel:netsentinel . .
+USER netsentinel:netsentinel
 
 EXPOSE 8501
 
-# Python-based healthcheck to avoid dependency on curl
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')" || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3).read()"]
 
-CMD ["streamlit", "run", "dashboard/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+STOPSIGNAL SIGTERM
+
+CMD ["streamlit", "run", "dashboard/streamlit_app.py"]

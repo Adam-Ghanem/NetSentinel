@@ -47,14 +47,15 @@ def test_parse_dns_query_normalizes_trailing_dot():
     assert result["dns_query"] == "updates.example"
 
 
-def test_parse_arp_packet_extracts_addresses_without_ip_layer():
-    packet = Ether() / ARP(psrc="192.0.2.1", pdst="192.0.2.2")
+def test_parse_arp_packet_extracts_addresses_and_operation():
+    packet = Ether() / ARP(op=2, psrc="192.0.2.1", pdst="192.0.2.2")
 
     result = parse_packet(packet, TIMESTAMP)
 
     assert result["protocol"] == "ARP"
     assert result["source_ip"] == "192.0.2.1"
     assert result["dest_ip"] == "192.0.2.2"
+    assert result["arp_op"] == "is-at"
     assert result["source_port"] is None
     assert result["dest_port"] is None
 

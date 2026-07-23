@@ -1,116 +1,151 @@
-import yaml
-import os
+from __future__ import annotations
+
 import re
 import time
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
+
+import yaml
+from pydantic import ValidationError
+
+from app.contracts import DetectionRule, PacketMetadata
 from app.utils import get_logger, is_public_ip
 
 logger = get_logger(__name__)
 
+
 class RulesEngine:
-    def __init__(self, rules_dir="rules"):
-        self.rules_dir = rules_dir
+    """Load validated YAML rules and evaluate them against packet metadata."""
+
+    def __init__(self, rules_dir: str | Path = "rules") -> None:
+        self.rules_dir = Path(rules_dir)
         self.rules = self._load_rules()
 
-    def _load_rules(self):
-        rules = []
-        if not os.path.exists(self.rules_dir):
-            os.makedirs(self.rules_dir)
-            return rules
-            
-        for filename in os.listdir(self.rules_dir):
-            if filename.endswith((".yaml", ".yml")):
-                filepath = os.path.join(self.rules_dir, filename)
-                with open(filepath, "r") as f:
-                    try:
-                        loaded_rules = yaml.safe_load(f)
-                        if isinstance(loaded_rules, list):
-                            rules.extend(loaded_rules)
-                        elif isinstance(loaded_rules, dict):
-                            rules.append(loaded_rules)
-                    except yaml.YAMLError as e:
-                        logger.error(f"Error loading YAML rule file {filepath}: {e}")
-        logger.info(f"Loaded {len(rules)} detection rules.")
+    def _load_rules(self) -> list[DetectionRule]:
+        rules: list[DetectionRule] = []
+        self.rules_dir.mkdir(parents=True, exist_ok=True)
+
+        for filepath in sorted(self.rules_dir.glob("*.y*ml")):
+            try:
+                loaded = yaml.safe_load(filepath.read_text(encoding="utf-8"))
+            except (OSError, yaml.YAMLError) as exc:
+                logger.error("Unable to load detection rule file %s: %s", filepath, exc)
+                continue
+
+            candidates = loaded if isinstance(loaded, list) else [loaded]
+            for index, candidate in enumerate(candidates, start=1):
+                if not isinstance(candidate, dict):
+                    logger.error("Skipping non-object rule %s[%d]", filepath, index)
+                    continue
+                try:
+                    rules.append(DetectionRule.model_validate(candidate))
+                except ValidationError as exc:
+                    logger.error(
+                        "Skipping invalid detection rule %s[%d]: %s",
+                        filepath,
+                        index,
+                        exc,
+                    )
+
+        logger.info("Loaded %d validated detection rules.", len(rules))
         return rules
 
-    def evaluate_rules(self, parsed_packet, connections, traffic_stats):
-        triggered_rules = []
-        for rule in self.rules:
-            if self._check_rule(rule, parsed_packet, connections, traffic_stats):
-                triggered_rules.append(rule)
-        return triggered_rules
+    def evaluate_rules(
+        self,
+        parsed_packet: PacketMetadata | Mapping[str, Any],
+        connections: Mapping[str, Any],
+        traffic_stats: Mapping[str, Mapping[str, Any]],
+    ) -> list[DetectionRule]:
+        packet = (
+            parsed_packet
+            if isinstance(parsed_packet, PacketMetadata)
+            else PacketMetadata.model_validate(parsed_packet)
+        )
+        return [
+            rule
+            for rule in self.rules
+            if self._check_rule(rule, packet, connections, traffic_stats)
+        ]
 
-    def _check_rule(self, rule, parsed_packet, connections, traffic_stats):
-        # 1. Basic Filters
-        if rule.get("protocol") and parsed_packet.get("protocol") != rule["protocol"]:
+    def _check_rule(
+        self,
+        rule: DetectionRule,
+        packet: PacketMetadata,
+        _connections: Mapping[str, Any],
+        traffic_stats: Mapping[str, Mapping[str, Any]],
+    ) -> bool:
+        if rule.protocol and packet.protocol != rule.protocol:
             return False
-        if rule.get("dest_port") and parsed_packet.get("dest_port") != rule["dest_port"]:
+        if rule.dest_port is not None and packet.dest_port != rule.dest_port:
             return False
-        if rule.get("source_ip") and parsed_packet.get("source_ip") != rule["source_ip"]:
+        if rule.source_ip and packet.source_ip != rule.source_ip:
             return False
-        if rule.get("tcp_flags") and parsed_packet.get("tcp_flags") != rule["tcp_flags"]:
+        if rule.tcp_flags and packet.tcp_flags != rule.tcp_flags:
             return False
-        if rule.get("arp_op") and parsed_packet.get("arp_op") != rule["arp_op"]:
+        if rule.arp_op and packet.arp_op != rule.arp_op:
             return False
 
-        # 2. Payload Signature Matching (DPI)
-        if rule.get("payload_pattern"):
-            payload = parsed_packet.get("payload_printable")
-            if not payload:
+        if rule.payload_pattern:
+            if not packet.payload_printable:
                 return False
-            if not re.search(rule["payload_pattern"], payload):
+            if not re.search(rule.payload_pattern, packet.payload_printable):
                 return False
 
-        # 3. DNS Pattern
-        if rule.get("dns_query_pattern") and parsed_packet.get("dns_query"):
-            if not re.search(rule["dns_query_pattern"], parsed_packet["dns_query"]):
+        if rule.dns_query_pattern:
+            if not packet.dns_query:
                 return False
-        elif rule.get("dns_query_pattern") and not parsed_packet.get("dns_query"):
-            return False
+            if not re.search(rule.dns_query_pattern, packet.dns_query):
+                return False
 
-        # 4. Stateful / Traffic Stats Checks
-        src_ip = parsed_packet.get("source_ip")
-        stats = traffic_stats.get(src_ip, {}) if src_ip else {}
-        
+        stats = traffic_stats.get(packet.source_ip, {}) if packet.source_ip else {}
         current_time = time.time()
 
         if stats:
-            if rule.get("min_unique_ports"):
-                if len(stats.get("dest_ports", {})) < rule["min_unique_ports"]:
+            if rule.min_unique_ports is not None:
+                if len(stats.get("dest_ports", {})) < rule.min_unique_ports:
                     return False
 
-            if rule.get("min_syn_packets"):
-                if stats.get("syn_packets", 0) < rule["min_syn_packets"]:
+            if rule.min_syn_packets is not None:
+                if stats.get("syn_packets", 0) < rule.min_syn_packets:
                     return False
 
-            if rule.get("min_dns_queries"):
-                if stats.get("dns_queries", 0) < rule["min_dns_queries"]:
+            if rule.min_dns_queries is not None:
+                if stats.get("dns_queries", 0) < rule.min_dns_queries:
                     return False
 
-            if rule.get("min_bytes_per_second"):
+            if rule.min_bytes_per_second is not None:
                 duration = max(1, current_time - stats.get("start_time", current_time))
-                if (stats.get("total_bytes", 0) / duration) < rule["min_bytes_per_second"]:
+                if (stats.get("total_bytes", 0) / duration) < rule.min_bytes_per_second:
                     return False
 
-            if rule.get("interval_variance_threshold"):
+            if rule.min_connections is not None:
+                if stats.get("connections", 0) < rule.min_connections:
+                    return False
+
+            if rule.interval_variance_threshold is not None:
                 history = stats.get("connection_history", [])
                 if len(history) < 5:
                     return False
-                intervals = [history[i] - history[i-1] for i in range(1, len(history))]
-                avg_interval = sum(intervals) / len(intervals)
-                variance = sum((x - avg_interval) ** 2 for x in intervals) / len(intervals)
-                if variance > rule["interval_variance_threshold"]:
+                intervals = [history[index] - history[index - 1] for index in range(1, len(history))]
+                average = sum(intervals) / len(intervals)
+                variance = sum((interval - average) ** 2 for interval in intervals) / len(intervals)
+                if variance > rule.interval_variance_threshold:
                     return False
 
-        # 5. External IP Check
-        if rule.get("is_external_ip"):
-            dst_ip = parsed_packet.get("dest_ip")
-            if not dst_ip or not is_public_ip(dst_ip):
+            if rule.syn_ack_ratio_threshold is not None:
+                syn_packets = stats.get("syn_packets", 0)
+                syn_ack_packets = stats.get("syn_ack_packets", 0)
+                if syn_packets <= 0:
+                    return False
+                if (syn_ack_packets / syn_packets) > rule.syn_ack_ratio_threshold:
+                    return False
+
+        if rule.is_external_ip:
+            if not packet.dest_ip or not is_public_ip(packet.dest_ip):
                 return False
 
-        # 6. Unusual Ports
-        if rule.get("unusual_ports"):
-            dst_port = parsed_packet.get("dest_port")
-            if dst_port not in rule["unusual_ports"]:
-                return False
+        if rule.unusual_ports and packet.dest_port not in rule.unusual_ports:
+            return False
 
         return True

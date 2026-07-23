@@ -65,11 +65,23 @@ def test_detection_rule_rejects_invalid_regex_and_empty_conditions():
             payload_pattern="[",
         )
 
-    with pytest.raises(ValidationError, match="at least one condition"):
+    with pytest.raises(ValidationError, match="supported condition"):
         DetectionRule(
             name="No condition",
             description="This rule cannot trigger.",
             severity="Low",
+        )
+
+
+def test_detection_rule_rejects_unimplemented_arp_state_condition():
+    with pytest.raises(ValidationError, match="mac_ip_mismatch is not supported"):
+        DetectionRule(
+            name="ARP mismatch",
+            description="Requires bounded ARP state before it can be evaluated safely.",
+            severity="Critical",
+            protocol="ARP",
+            arp_op="is-at",
+            mac_ip_mismatch=True,
         )
 
 

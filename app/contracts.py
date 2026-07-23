@@ -137,7 +137,12 @@ class DetectionRule(BaseModel):
         return tuple(dict.fromkeys(value))
 
     @model_validator(mode="after")
-    def require_detection_condition(self) -> DetectionRule:
+    def validate_supported_conditions(self) -> DetectionRule:
+        if self.mac_ip_mismatch:
+            raise ValueError(
+                "mac_ip_mismatch is not supported until bounded ARP state is implemented"
+            )
+
         condition_fields = (
             self.protocol,
             self.dest_port,
@@ -155,10 +160,9 @@ class DetectionRule(BaseModel):
             self.min_connections,
             self.interval_variance_threshold,
             self.syn_ack_ratio_threshold,
-            self.mac_ip_mismatch,
         )
         if not any(value not in (None, False) for value in condition_fields):
-            raise ValueError("detection rule must define at least one condition")
+            raise ValueError("detection rule must define at least one supported condition")
         return self
 
 

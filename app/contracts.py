@@ -126,7 +126,9 @@ class DetectionRule(BaseModel):
 
     @field_validator("unusual_ports")
     @classmethod
-    def validate_unusual_ports(cls, value: tuple[int, ...] | None) -> tuple[int, ...] | None:
+    def validate_unusual_ports(
+        cls, value: tuple[int, ...] | None
+    ) -> tuple[int, ...] | None:
         if value is None:
             return None
         if not value:

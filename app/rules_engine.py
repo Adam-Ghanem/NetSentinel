@@ -127,9 +127,14 @@ class RulesEngine:
                 history = stats.get("connection_history", [])
                 if len(history) < 5:
                     return False
-                intervals = [history[index] - history[index - 1] for index in range(1, len(history))]
+                intervals = [
+                    history[index] - history[index - 1]
+                    for index in range(1, len(history))
+                ]
                 average = sum(intervals) / len(intervals)
-                variance = sum((interval - average) ** 2 for interval in intervals) / len(intervals)
+                variance = sum(
+                    (interval - average) ** 2 for interval in intervals
+                ) / len(intervals)
                 if variance > rule.interval_variance_threshold:
                     return False
 

@@ -1,0 +1,88 @@
+name: Detection Contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/contracts.py"
+      - "app/parser.py"
+      - "app/rules_engine.py"
+      - "app/detection_engine.py"
+      - "tests/test_detection_contracts.py"
+      - "tests/test_detection_engine_contracts.py"
+      - "tests/test_rules_engine_contracts.py"
+      - "tests/test_parser.py"
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - ".github/workflows/detection-contracts.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/contracts.py"
+      - "app/parser.py"
+      - "app/rules_engine.py"
+      - "app/detection_engine.py"
+      - "tests/test_detection_contracts.py"
+      - "tests/test_detection_engine_contracts.py"
+      - "tests/test_rules_engine_contracts.py"
+      - "tests/test_parser.py"
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - ".github/workflows/detection-contracts.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: detection-contracts-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract-quality:
+    name: Contract quality (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint detection boundaries
+        run: >-
+          python -m ruff check
+          app/contracts.py
+          app/parser.py
+          app/rules_engine.py
+          app/detection_engine.py
+          tests/test_detection_contracts.py
+          tests/test_detection_engine_contracts.py
+          tests/test_rules_engine_contracts.py
+          tests/test_parser.py
+
+      - name: Run detection contract tests
+        run: >-
+          python -m pytest
+          tests/test_detection_contracts.py
+          tests/test_detection_engine_contracts.py
+          tests/test_rules_engine_contracts.py
+          tests/test_parser.py

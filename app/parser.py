@@ -1,5 +1,9 @@
+from datetime import datetime
+from typing import Any
+
 from scapy.all import ARP, DNS, Ether, ICMP, IP, Raw, TCP, UDP
 
+from app.contracts import PacketMetadata
 from app.ja3 import generate_ja3
 
 try:
@@ -8,9 +12,10 @@ except ImportError:
     TLSClientHello = None
 
 
-def parse_packet(packet, timestamp):
-    """Extract packet metadata used by the dashboard and detection engine."""
-    packet_data = {
+def parse_packet(packet: Any, timestamp: datetime) -> dict[str, Any]:
+    """Extract and validate packet metadata used by the dashboard and detection engine."""
+
+    packet_data: dict[str, Any] = {
         "timestamp": timestamp,
         "source_mac": None,
         "dest_mac": None,
@@ -21,6 +26,7 @@ def parse_packet(packet, timestamp):
         "dest_port": None,
         "packet_size": len(packet),
         "tcp_flags": None,
+        "arp_op": None,
         "dns_query": None,
         "http_host": None,
         "http_path": None,
@@ -86,5 +92,6 @@ def parse_packet(packet, timestamp):
         packet_data["protocol"] = "ARP"
         packet_data["source_ip"] = packet[ARP].psrc
         packet_data["dest_ip"] = packet[ARP].pdst
+        packet_data["arp_op"] = "who-has" if packet[ARP].op == 1 else "is-at"
 
-    return packet_data
+    return PacketMetadata.model_validate(packet_data).model_dump(mode="python")

@@ -12,8 +12,8 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 ## P1 — Detection and SOC Workflow
 
-6. **Typed detection interfaces** — next P1 focus: explicit packet, rule, alert, and enrichment models with validated boundaries.
-7. **Stateful detection engine** — reliable time windows, bounded state, deduplication, suppression, and deterministic tests.
+6. **Typed detection interfaces** — delivered foundation: validated packet metadata, YAML rule, severity, MITRE ATT&CK, and alert persistence contracts with focused tests and CI enforcement. Remaining work: typed enrichment evidence and rule lifecycle metadata.
+7. **Stateful detection engine** — next P1 focus: reliable time windows, bounded state, deduplication, suppression, and deterministic tests.
 8. **Detection engineering content** — realistic sample traffic, rule metadata, severity rationale, false-positive guidance, and MITRE ATT&CK mappings.
 9. **Alert enrichment** — normalized IOC context, cache expiry, provider failure handling, confidence fields, and evidence provenance.
 10. **Incident workflow** — alert-to-case linking, status transitions, ownership, notes, evidence, and audit history.
@@ -36,4 +36,4 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 ## Current Focus
 
-The P0 safety foundation now includes migration-first database operations and a hardened, vulnerability-gated runtime image with SBOM evidence. The next highest-impact slice is typed detection interfaces so parser output, rules, alerts, and enrichment can evolve behind explicit validated contracts.
+The P0 safety foundation now includes migration-first database operations and a hardened, vulnerability-gated runtime image with SBOM evidence. Typed detection boundaries now protect parser output, rule loading, and alert persistence. The next highest-impact slice is bounded stateful detection with explicit windows, deduplication, and suppression semantics.

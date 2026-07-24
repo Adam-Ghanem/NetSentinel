@@ -4,10 +4,12 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "app/alert_suppression.py"
       - "app/contracts.py"
       - "app/parser.py"
       - "app/rules_engine.py"
       - "app/detection_engine.py"
+      - "tests/test_alert_suppression.py"
       - "tests/test_detection_contracts.py"
       - "tests/test_detection_engine_contracts.py"
       - "tests/test_rules_engine_contracts.py"
@@ -18,10 +20,12 @@ on:
   push:
     branches: [main]
     paths:
+      - "app/alert_suppression.py"
       - "app/contracts.py"
       - "app/parser.py"
       - "app/rules_engine.py"
       - "app/detection_engine.py"
+      - "tests/test_alert_suppression.py"
       - "tests/test_detection_contracts.py"
       - "tests/test_detection_engine_contracts.py"
       - "tests/test_rules_engine_contracts.py"
@@ -70,10 +74,12 @@ jobs:
       - name: Lint detection boundaries
         run: >-
           python -m ruff check
+          app/alert_suppression.py
           app/contracts.py
           app/parser.py
           app/rules_engine.py
           app/detection_engine.py
+          tests/test_alert_suppression.py
           tests/test_detection_contracts.py
           tests/test_detection_engine_contracts.py
           tests/test_rules_engine_contracts.py
@@ -82,6 +88,7 @@ jobs:
       - name: Run detection contract tests
         run: >-
           python -m pytest
+          tests/test_alert_suppression.py
           tests/test_detection_contracts.py
           tests/test_detection_engine_contracts.py
           tests/test_rules_engine_contracts.py

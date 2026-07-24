@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
+from app.alert_suppression import AlertSuppressor
 from app.contracts import AlertRecord, DetectionRule, PacketMetadata, Severity
 from app.intel import ThreatIntel
 from app.utils import get_logger
@@ -26,11 +27,20 @@ class DetectionRules(Protocol):
 
 
 class DetectionEngine:
-    """Coordinate threat intelligence, fingerprints, and validated detection rules."""
+    """Coordinate intelligence, fingerprints, validated rules, and suppression."""
 
-    def __init__(self, rules_engine: DetectionRules, database_manager: AlertDatabase) -> None:
+    def __init__(
+        self,
+        rules_engine: DetectionRules,
+        database_manager: AlertDatabase,
+        *,
+        alert_suppressor: AlertSuppressor | None = None,
+        now: Callable[[], datetime] | None = None,
+    ) -> None:
         self.rules_engine = rules_engine
         self.db = database_manager
+        self.alert_suppressor = alert_suppressor or AlertSuppressor()
+        self._now = now or (lambda: datetime.now(timezone.utc))
         self.intel = ThreatIntel()
         self.intel.sync_otx()
 
@@ -121,9 +131,20 @@ class DetectionEngine:
         mitre_attack: str | None = None,
         recommended_action: str | None = None,
     ) -> None:
+        suppression_key = self._suppression_key(
+            alert_type=alert_type,
+            source_ip=source_ip,
+            dest_ip=dest_ip,
+            mitre_attack=mitre_attack,
+        )
+        decision = self.alert_suppressor.evaluate(suppression_key)
+        if not decision.emit:
+            logger.info("Suppressed duplicate alert %s: %s", alert_type, decision.reason)
+            return
+
         alert = AlertRecord(
             alert_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=self._now(),
             source_ip=source_ip,
             dest_ip=dest_ip,
             alert_type=alert_type,
@@ -142,3 +163,19 @@ class DetectionEngine:
             )
         except Exception:
             logger.exception("Failed to persist validated alert %s", alert.alert_id)
+
+    @staticmethod
+    def _suppression_key(
+        *,
+        alert_type: str,
+        source_ip: str | None,
+        dest_ip: str | None,
+        mitre_attack: str | None,
+    ) -> str:
+        components = (
+            alert_type,
+            source_ip or "-",
+            dest_ip or "-",
+            mitre_attack or "-",
+        )
+        return "\x1f".join(components)

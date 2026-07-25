@@ -56,6 +56,28 @@ def test_detection_rule_normalizes_severity_protocol_and_mitre_id():
     assert rule.mitre_attack == "T1071.001"
 
 
+def test_detection_rule_validates_suppression_policy_bounds():
+    rule = DetectionRule(
+        name="Repeated TLS alert",
+        description="Apply an explicit duplicate-alert cooldown.",
+        severity="Medium",
+        protocol="TLS",
+        suppression_seconds=300,
+    )
+
+    assert rule.suppression_seconds == 300
+
+    for invalid_value in (0, 86_401):
+        with pytest.raises(ValidationError):
+            DetectionRule(
+                name="Invalid suppression policy",
+                description="Reject unsafe suppression settings.",
+                severity="Medium",
+                protocol="TLS",
+                suppression_seconds=invalid_value,
+            )
+
+
 def test_detection_rule_rejects_invalid_regex_and_empty_conditions():
     with pytest.raises(ValidationError, match="valid regular expression"):
         DetectionRule(

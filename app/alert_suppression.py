@@ -14,6 +14,23 @@ class SuppressionDecision:
     reason: str
 
 
+@dataclass(frozen=True, slots=True)
+class SuppressionMetrics:
+    """Expose cumulative suppression outcomes without leaking alert keys."""
+
+    emitted: int
+    suppressed: int
+    expired: int
+    evicted: int
+    tracked_entries: int
+
+
+@dataclass(frozen=True, slots=True)
+class _SuppressionEntry:
+    emitted_at: float
+    expires_at: float
+
+
 class AlertSuppressor:
     """Bound duplicate-alert state by cooldown, expiry, and maximum entries."""
 
@@ -32,7 +49,11 @@ class AlertSuppressor:
         self.cooldown_seconds = cooldown_seconds
         self.max_entries = max_entries
         self._clock = clock
-        self._last_emitted: OrderedDict[str, float] = OrderedDict()
+        self._last_emitted: OrderedDict[str, _SuppressionEntry] = OrderedDict()
+        self._emitted = 0
+        self._suppressed = 0
+        self._expired = 0
+        self._evicted = 0
 
     @property
     def tracked_entries(self) -> int:
@@ -40,32 +61,59 @@ class AlertSuppressor:
 
         return len(self._last_emitted)
 
-    def evaluate(self, key: str) -> SuppressionDecision:
-        """Return a deterministic decision and update state only on emission."""
+    def metrics(self) -> SuppressionMetrics:
+        """Return a sanitized cumulative metrics snapshot."""
+
+        return SuppressionMetrics(
+            emitted=self._emitted,
+            suppressed=self._suppressed,
+            expired=self._expired,
+            evicted=self._evicted,
+            tracked_entries=self.tracked_entries,
+        )
+
+    def evaluate(
+        self,
+        key: str,
+        *,
+        cooldown_seconds: float | None = None,
+    ) -> SuppressionDecision:
+        """Return a deterministic decision using an optional per-alert cooldown."""
 
         if not key:
             raise ValueError("suppression key must not be empty")
+        effective_cooldown = (
+            self.cooldown_seconds if cooldown_seconds is None else cooldown_seconds
+        )
+        if effective_cooldown <= 0:
+            raise ValueError("cooldown_seconds must be greater than zero")
 
         now = self._clock()
         self._expire(now)
         previous = self._last_emitted.get(key)
 
-        if previous is not None and now - previous < self.cooldown_seconds:
+        if previous is not None and now < previous.expires_at:
+            self._suppressed += 1
             return SuppressionDecision(emit=False, reason="duplicate-within-cooldown")
 
-        self._last_emitted[key] = now
+        self._last_emitted[key] = _SuppressionEntry(
+            emitted_at=now,
+            expires_at=now + effective_cooldown,
+        )
         self._last_emitted.move_to_end(key)
+        self._emitted += 1
         self._enforce_capacity()
         return SuppressionDecision(emit=True, reason="new-or-expired")
 
     def _expire(self, now: float) -> None:
-        expiry_cutoff = now - self.cooldown_seconds
-        while self._last_emitted:
-            _, emitted_at = next(iter(self._last_emitted.items()))
-            if emitted_at > expiry_cutoff:
-                break
-            self._last_emitted.popitem(last=False)
+        expired_keys = [
+            key for key, entry in self._last_emitted.items() if now >= entry.expires_at
+        ]
+        for key in expired_keys:
+            del self._last_emitted[key]
+        self._expired += len(expired_keys)
 
     def _enforce_capacity(self) -> None:
         while len(self._last_emitted) > self.max_entries:
             self._last_emitted.popitem(last=False)
+            self._evicted += 1

@@ -7,6 +7,7 @@ from typing import Any, Protocol
 
 from app.alert_suppression import AlertSuppressor
 from app.contracts import AlertRecord, DetectionRule, PacketMetadata, Severity
+from app.detection_observability import DetectionMetricsSnapshot, DetectionObservability
 from app.intel import ThreatIntel
 from app.utils import get_logger
 
@@ -41,8 +42,17 @@ class DetectionEngine:
         self.db = database_manager
         self.alert_suppressor = alert_suppressor or AlertSuppressor()
         self._now = now or (lambda: datetime.now(timezone.utc))
+        self.observability = DetectionObservability(
+            self.alert_suppressor,
+            now=self._now,
+        )
         self.intel = ThreatIntel()
         self.intel.sync_otx()
+
+    def metrics_snapshot(self) -> DetectionMetricsSnapshot:
+        """Return sanitized process-local detection metrics for read-only consumers."""
+
+        return self.observability.snapshot()
 
     def run_detections(
         self,

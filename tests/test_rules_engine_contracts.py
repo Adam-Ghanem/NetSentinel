@@ -29,6 +29,7 @@ def test_rule_loader_accepts_valid_rules_and_skips_invalid_entries(tmp_path):
   severity: High
   protocol: TCP
   unusual_ports: [31337]
+  suppression_seconds: 300
   mitre_attack: T1090
 - name: Invalid severity
   description: This rule should be rejected.
@@ -43,6 +44,7 @@ def test_rule_loader_accepts_valid_rules_and_skips_invalid_entries(tmp_path):
     assert len(engine.rules) == 1
     assert engine.rules[0].name == "Valid unusual port"
     assert engine.rules[0].severity is Severity.HIGH
+    assert engine.rules[0].suppression_seconds == 300
 
 
 def test_rule_evaluation_returns_typed_rules(tmp_path):

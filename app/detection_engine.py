@@ -68,6 +68,7 @@ class DetectionEngine:
                 dest_ip=packet.dest_ip,
                 mitre_attack=rule.mitre_attack,
                 recommended_action=rule.recommended_action,
+                suppression_seconds=rule.suppression_seconds,
             )
 
     def _check_threat_intel(self, packet: PacketMetadata) -> None:
@@ -130,6 +131,7 @@ class DetectionEngine:
         dest_ip: str | None,
         mitre_attack: str | None = None,
         recommended_action: str | None = None,
+        suppression_seconds: float | None = None,
     ) -> None:
         suppression_key = self._suppression_key(
             alert_type=alert_type,
@@ -137,7 +139,10 @@ class DetectionEngine:
             dest_ip=dest_ip,
             mitre_attack=mitre_attack,
         )
-        decision = self.alert_suppressor.evaluate(suppression_key)
+        decision = self.alert_suppressor.evaluate(
+            suppression_key,
+            cooldown_seconds=suppression_seconds,
+        )
         if not decision.emit:
             logger.info("Suppressed duplicate alert %s: %s", alert_type, decision.reason)
             return

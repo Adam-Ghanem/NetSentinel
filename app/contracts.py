@@ -70,6 +70,7 @@ class DetectionRule(BaseModel):
     severity: Severity
     recommended_action: str | None = Field(default=None, max_length=2000)
     mitre_attack: str | None = None
+    suppression_seconds: int | None = Field(default=None, ge=1, le=86_400)
 
     protocol: str | None = None
     dest_port: int | None = Field(default=None, ge=0, le=65535)

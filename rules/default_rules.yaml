@@ -3,6 +3,7 @@
   tcp_flags: "S"
   min_syn_packets: 5
   time_window_seconds: 10
+  suppression_seconds: 120
   description: "Detects multiple SYN packets to different destination ports from a single source IP within a time window."
   severity: "High"
   recommended_action: "Investigate source IP for malicious scanning activity. Consider blocking the source IP."
@@ -22,6 +23,7 @@
   dest_port: 53
   min_dns_queries: 100
   time_window_seconds: 5
+  suppression_seconds: 60
   description: "Detects an unusually high volume of DNS queries from a single source IP, potentially indicating a DNS flood attack or malware activity."
   severity: "High"
   recommended_action: "Investigate the source host for malware or misconfiguration. Implement DNS rate limiting."
@@ -30,6 +32,7 @@
 - name: "High Traffic Volume from One Host"
   min_bytes_per_second: 1000000 # 1 MB/s
   time_window_seconds: 60
+  suppression_seconds: 300
   description: "Detects a single host generating an unusually high volume of traffic over a period, which could indicate data exfiltration or a compromised host."
   severity: "Medium"
   recommended_action: "Investigate the host for unauthorized data transfer or malicious activity. Monitor network bandwidth usage."
@@ -41,6 +44,7 @@
   syn_ack_ratio_threshold: 0.1 # Low SYN-ACK ratio
   min_syn_packets: 20
   time_window_seconds: 10
+  suppression_seconds: 120
   description: "Detects a high number of SYN packets without corresponding SYN-ACKs, which can indicate a SYN flood attack."
   severity: "High"
   recommended_action: "Implement SYN flood protection. Block the source IP if attack is confirmed."
@@ -49,6 +53,7 @@
 - name: "Unusual Destination Ports"
   protocol: "TCP"
   unusual_ports: [6667, 6668, 6669, 1337, 31337] # Common IRC/backdoor ports
+  suppression_seconds: 300
   description: "Detects connections to known unusual or suspicious destination ports, often used by malware or for command and control."
   severity: "Medium"
   recommended_action: "Investigate the connection and the involved hosts. Block access to these ports."
@@ -57,6 +62,7 @@
 - name: "Repeated Connections to Same External IP"
   min_connections: 10
   time_window_seconds: 300 # 5 minutes
+  suppression_seconds: 600
   is_external_ip: True
   description: "Detects a host repeatedly connecting to the same external IP address, which could indicate beaconing or C2 communication."
   severity: "Medium"
@@ -68,6 +74,7 @@
   min_connections: 5
   interval_variance_threshold: 0.2 # Low variance in connection intervals
   time_window_seconds: 600 # 10 minutes
+  suppression_seconds: 900
   description: "Detects periodic, consistent connections to an external host, characteristic of beaconing behavior by malware."
   severity: "High"
   recommended_action: "Isolate the host and perform a forensic analysis. Block the destination IP."

@@ -1,0 +1,82 @@
+from datetime import datetime, timezone
+
+import pytest
+
+from app.alert_suppression import AlertSuppressor
+from app.detection_engine import DetectionEngine
+from app.detection_observability import DetectionObservability
+
+
+class Clock:
+    def __init__(self) -> None:
+        self.value = 0.0
+
+    def __call__(self) -> float:
+        return self.value
+
+
+def test_snapshot_exposes_sanitized_suppression_metrics():
+    clock = Clock()
+    suppressor = AlertSuppressor(clock=clock)
+    generated_at = datetime(2026, 7, 25, 13, 0, tzinfo=timezone.utc)
+    observability = DetectionObservability(suppressor, now=lambda: generated_at)
+
+    suppressor.evaluate("sensitive-alert-key")
+    suppressor.evaluate("sensitive-alert-key")
+
+    payload = observability.snapshot().to_dict()
+
+    assert payload == {
+        "generated_at": "2026-07-25T13:00:00+00:00",
+        "suppression": {
+            "emitted": 1,
+            "suppressed": 1,
+            "expired": 0,
+            "evicted": 0,
+            "tracked_entries": 1,
+        },
+        "derived": {
+            "total_decisions": 2,
+            "suppression_ratio": 0.5,
+        },
+    }
+    assert "sensitive-alert-key" not in str(payload)
+
+
+def test_snapshot_is_immutable_point_in_time_view():
+    suppressor = AlertSuppressor()
+    observability = DetectionObservability(suppressor)
+
+    first = observability.snapshot()
+    suppressor.evaluate("alert-a")
+    second = observability.snapshot()
+
+    assert first.suppression.emitted == 0
+    assert second.suppression.emitted == 1
+
+
+def test_empty_snapshot_uses_zero_suppression_ratio():
+    snapshot = DetectionObservability(AlertSuppressor()).snapshot()
+
+    assert snapshot.total_decisions == 0
+    assert snapshot.suppression_ratio == 0.0
+
+
+def test_observability_rejects_naive_timestamps():
+    observability = DetectionObservability(
+        AlertSuppressor(),
+        now=lambda: datetime(2026, 7, 25, 13, 0),
+    )
+
+    with pytest.raises(ValueError, match="timezone-aware"):
+        observability.snapshot()
+
+
+def test_detection_engine_exposes_same_read_only_snapshot():
+    suppressor = AlertSuppressor()
+    engine = object.__new__(DetectionEngine)
+    engine.observability = DetectionObservability(suppressor)
+
+    suppressor.evaluate("alert-a")
+
+    assert engine.metrics_snapshot().suppression.emitted == 1

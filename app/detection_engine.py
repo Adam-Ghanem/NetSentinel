@@ -9,6 +9,7 @@ from app.alert_suppression import AlertSuppressor
 from app.contracts import AlertRecord, DetectionRule, PacketMetadata, Severity
 from app.detection_observability import DetectionMetricsSnapshot, DetectionObservability
 from app.intel import ThreatIntel
+from app.port_scan_detector import PortScanMatch, UniquePortScanDetector
 from app.utils import get_logger
 
 logger = get_logger(__name__)
@@ -28,7 +29,7 @@ class DetectionRules(Protocol):
 
 
 class DetectionEngine:
-    """Coordinate intelligence, fingerprints, validated rules, and suppression."""
+    """Coordinate intelligence, stateful detectors, validated rules, and suppression."""
 
     def __init__(
         self,
@@ -36,11 +37,13 @@ class DetectionEngine:
         database_manager: AlertDatabase,
         *,
         alert_suppressor: AlertSuppressor | None = None,
+        port_scan_detector: UniquePortScanDetector | None = None,
         now: Callable[[], datetime] | None = None,
     ) -> None:
         self.rules_engine = rules_engine
         self.db = database_manager
         self.alert_suppressor = alert_suppressor or AlertSuppressor()
+        self.port_scan_detector = port_scan_detector or UniquePortScanDetector()
         self._now = now or (lambda: datetime.now(timezone.utc))
         self.observability = DetectionObservability(
             self.alert_suppressor,
@@ -68,6 +71,7 @@ class DetectionEngine:
 
         self._check_threat_intel(packet)
         self._check_ja3_malware(packet)
+        self._check_unique_port_scan(packet)
 
         for rule in self.rules_engine.evaluate_rules(packet, connections, traffic_stats):
             self._create_alert(
@@ -80,6 +84,32 @@ class DetectionEngine:
                 recommended_action=rule.recommended_action,
                 suppression_seconds=rule.suppression_seconds,
             )
+
+    def _check_unique_port_scan(self, packet: PacketMetadata) -> None:
+        match = self.port_scan_detector.observe(packet)
+        if match is None:
+            return
+
+        self._create_port_scan_alert(match)
+
+    def _create_port_scan_alert(self, match: PortScanMatch) -> None:
+        description = (
+            f"Observed TCP SYN activity across {match.unique_ports} unique destination "
+            f"ports within {match.window_seconds:g} seconds."
+        )
+        self._create_alert(
+            alert_type="Unique Destination Port Scan",
+            severity=Severity.HIGH,
+            description=description,
+            source_ip=match.source_ip,
+            dest_ip=match.destination_ip,
+            mitre_attack="T1046",
+            recommended_action=(
+                "Validate whether the source is an approved scanner and inspect the "
+                "destination for reconnaissance activity."
+            ),
+            suppression_seconds=60.0,
+        )
 
     def _check_threat_intel(self, packet: PacketMetadata) -> None:
         if packet.source_ip and self.intel.check_ip(packet.source_ip):

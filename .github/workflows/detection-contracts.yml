@@ -7,6 +7,7 @@ on:
       - "app/alert_suppression.py"
       - "app/contracts.py"
       - "app/detection_observability.py"
+      - "app/event_windows.py"
       - "app/parser.py"
       - "app/rules_engine.py"
       - "app/detection_engine.py"
@@ -15,10 +16,12 @@ on:
       - "tests/test_detection_contracts.py"
       - "tests/test_detection_engine_contracts.py"
       - "tests/test_detection_observability.py"
+      - "tests/test_event_windows.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
       - "docs/alert-suppression.md"
       - "docs/detection-observability.md"
+      - "docs/event-windows.md"
       - "requirements.txt"
       - "requirements-dev.txt"
       - ".github/workflows/detection-contracts.yml"
@@ -28,6 +31,7 @@ on:
       - "app/alert_suppression.py"
       - "app/contracts.py"
       - "app/detection_observability.py"
+      - "app/event_windows.py"
       - "app/parser.py"
       - "app/rules_engine.py"
       - "app/detection_engine.py"
@@ -36,10 +40,12 @@ on:
       - "tests/test_detection_contracts.py"
       - "tests/test_detection_engine_contracts.py"
       - "tests/test_detection_observability.py"
+      - "tests/test_event_windows.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
       - "docs/alert-suppression.md"
       - "docs/detection-observability.md"
+      - "docs/event-windows.md"
       - "requirements.txt"
       - "requirements-dev.txt"
       - ".github/workflows/detection-contracts.yml"
@@ -87,6 +93,7 @@ jobs:
           app/alert_suppression.py
           app/contracts.py
           app/detection_observability.py
+          app/event_windows.py
           app/parser.py
           app/rules_engine.py
           app/detection_engine.py
@@ -94,6 +101,7 @@ jobs:
           tests/test_detection_contracts.py
           tests/test_detection_engine_contracts.py
           tests/test_detection_observability.py
+          tests/test_event_windows.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py
 
@@ -104,5 +112,6 @@ jobs:
           tests/test_detection_contracts.py
           tests/test_detection_engine_contracts.py
           tests/test_detection_observability.py
+          tests/test_event_windows.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py

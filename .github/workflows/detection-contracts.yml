@@ -6,6 +6,7 @@ on:
     paths:
       - "app/alert_suppression.py"
       - "app/contracts.py"
+      - "app/detection_observability.py"
       - "app/parser.py"
       - "app/rules_engine.py"
       - "app/detection_engine.py"
@@ -13,9 +14,11 @@ on:
       - "tests/test_alert_suppression.py"
       - "tests/test_detection_contracts.py"
       - "tests/test_detection_engine_contracts.py"
+      - "tests/test_detection_observability.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
       - "docs/alert-suppression.md"
+      - "docs/detection-observability.md"
       - "requirements.txt"
       - "requirements-dev.txt"
       - ".github/workflows/detection-contracts.yml"
@@ -24,6 +27,7 @@ on:
     paths:
       - "app/alert_suppression.py"
       - "app/contracts.py"
+      - "app/detection_observability.py"
       - "app/parser.py"
       - "app/rules_engine.py"
       - "app/detection_engine.py"
@@ -31,9 +35,11 @@ on:
       - "tests/test_alert_suppression.py"
       - "tests/test_detection_contracts.py"
       - "tests/test_detection_engine_contracts.py"
+      - "tests/test_detection_observability.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
       - "docs/alert-suppression.md"
+      - "docs/detection-observability.md"
       - "requirements.txt"
       - "requirements-dev.txt"
       - ".github/workflows/detection-contracts.yml"
@@ -80,12 +86,14 @@ jobs:
           python -m ruff check
           app/alert_suppression.py
           app/contracts.py
+          app/detection_observability.py
           app/parser.py
           app/rules_engine.py
           app/detection_engine.py
           tests/test_alert_suppression.py
           tests/test_detection_contracts.py
           tests/test_detection_engine_contracts.py
+          tests/test_detection_observability.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py
 
@@ -95,5 +103,6 @@ jobs:
           tests/test_alert_suppression.py
           tests/test_detection_contracts.py
           tests/test_detection_engine_contracts.py
+          tests/test_detection_observability.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py

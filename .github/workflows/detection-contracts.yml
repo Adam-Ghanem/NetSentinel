@@ -19,6 +19,7 @@ on:
       - "tests/test_detection_observability.py"
       - "tests/test_event_windows.py"
       - "tests/test_port_scan_detector.py"
+      - "tests/test_port_scan_integration.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
       - "docs/alert-suppression.md"
@@ -46,6 +47,7 @@ on:
       - "tests/test_detection_observability.py"
       - "tests/test_event_windows.py"
       - "tests/test_port_scan_detector.py"
+      - "tests/test_port_scan_integration.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
       - "docs/alert-suppression.md"
@@ -110,6 +112,7 @@ jobs:
           tests/test_detection_observability.py
           tests/test_event_windows.py
           tests/test_port_scan_detector.py
+          tests/test_port_scan_integration.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py
 
@@ -122,5 +125,6 @@ jobs:
           tests/test_detection_observability.py
           tests/test_event_windows.py
           tests/test_port_scan_detector.py
+          tests/test_port_scan_integration.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py

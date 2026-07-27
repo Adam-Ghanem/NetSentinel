@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.alert_suppression import AlertSuppressor, SuppressionMetrics
+from app.event_windows import WindowSnapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,6 +15,7 @@ class DetectionMetricsSnapshot:
 
     generated_at: datetime
     suppression: SuppressionMetrics
+    port_scan_state: WindowSnapshot | None = None
 
     @property
     def total_decisions(self) -> int:
@@ -26,11 +28,14 @@ class DetectionMetricsSnapshot:
         return self.suppression.suppressed / self.total_decisions
 
     def to_dict(self) -> dict[str, Any]:
-        """Return a JSON-compatible representation without sensitive alert keys."""
+        """Return a JSON-compatible representation without sensitive detector keys."""
 
         return {
             "generated_at": self.generated_at.isoformat(),
             "suppression": asdict(self.suppression),
+            "port_scan_state": (
+                asdict(self.port_scan_state) if self.port_scan_state is not None else None
+            ),
             "derived": {
                 "total_decisions": self.total_decisions,
                 "suppression_ratio": self.suppression_ratio,
@@ -45,9 +50,11 @@ class DetectionObservability:
         self,
         alert_suppressor: AlertSuppressor,
         *,
+        port_scan_snapshot: Callable[[], WindowSnapshot] | None = None,
         now: Callable[[], datetime] | None = None,
     ) -> None:
         self._alert_suppressor = alert_suppressor
+        self._port_scan_snapshot = port_scan_snapshot
         self._now = now or (lambda: datetime.now(timezone.utc))
 
     def snapshot(self) -> DetectionMetricsSnapshot:
@@ -60,4 +67,7 @@ class DetectionObservability:
         return DetectionMetricsSnapshot(
             generated_at=generated_at,
             suppression=self._alert_suppressor.metrics(),
+            port_scan_state=(
+                self._port_scan_snapshot() if self._port_scan_snapshot is not None else None
+            ),
         )

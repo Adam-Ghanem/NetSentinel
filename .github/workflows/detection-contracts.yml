@@ -9,6 +9,7 @@ on:
       - "app/detection_observability.py"
       - "app/event_windows.py"
       - "app/port_scan_detector.py"
+      - "app/port_scan_policy.py"
       - "app/parser.py"
       - "app/rules_engine.py"
       - "app/detection_engine.py"
@@ -20,6 +21,7 @@ on:
       - "tests/test_event_windows.py"
       - "tests/test_port_scan_detector.py"
       - "tests/test_port_scan_integration.py"
+      - "tests/test_port_scan_policy.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
       - "docs/alert-suppression.md"
@@ -37,6 +39,7 @@ on:
       - "app/detection_observability.py"
       - "app/event_windows.py"
       - "app/port_scan_detector.py"
+      - "app/port_scan_policy.py"
       - "app/parser.py"
       - "app/rules_engine.py"
       - "app/detection_engine.py"
@@ -48,6 +51,7 @@ on:
       - "tests/test_event_windows.py"
       - "tests/test_port_scan_detector.py"
       - "tests/test_port_scan_integration.py"
+      - "tests/test_port_scan_policy.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
       - "docs/alert-suppression.md"
@@ -103,6 +107,7 @@ jobs:
           app/detection_observability.py
           app/event_windows.py
           app/port_scan_detector.py
+          app/port_scan_policy.py
           app/parser.py
           app/rules_engine.py
           app/detection_engine.py
@@ -113,6 +118,7 @@ jobs:
           tests/test_event_windows.py
           tests/test_port_scan_detector.py
           tests/test_port_scan_integration.py
+          tests/test_port_scan_policy.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py
 
@@ -126,5 +132,6 @@ jobs:
           tests/test_event_windows.py
           tests/test_port_scan_detector.py
           tests/test_port_scan_integration.py
+          tests/test_port_scan_policy.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py

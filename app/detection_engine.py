@@ -47,6 +47,7 @@ class DetectionEngine:
         self._now = now or (lambda: datetime.now(timezone.utc))
         self.observability = DetectionObservability(
             self.alert_suppressor,
+            port_scan_snapshot=self.port_scan_detector.snapshot,
             now=self._now,
         )
         self.intel = ThreatIntel()

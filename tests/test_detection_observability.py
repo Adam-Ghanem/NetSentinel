@@ -5,6 +5,7 @@ import pytest
 from app.alert_suppression import AlertSuppressor
 from app.detection_engine import DetectionEngine
 from app.detection_observability import DetectionObservability
+from app.event_windows import WindowSnapshot
 
 
 class Clock:
@@ -35,12 +36,39 @@ def test_snapshot_exposes_sanitized_suppression_metrics():
             "evicted": 0,
             "tracked_entries": 1,
         },
+        "port_scan_state": None,
         "derived": {
             "total_decisions": 2,
             "suppression_ratio": 0.5,
         },
     }
     assert "sensitive-alert-key" not in str(payload)
+
+
+def test_snapshot_exposes_sanitized_port_scan_state_pressure():
+    snapshot = WindowSnapshot(
+        tracked_keys=4,
+        tracked_events=17,
+        expired_events=9,
+        evicted_keys=2,
+        dropped_events=3,
+    )
+    observability = DetectionObservability(
+        AlertSuppressor(),
+        port_scan_snapshot=lambda: snapshot,
+    )
+
+    payload = observability.snapshot().to_dict()
+
+    assert payload["port_scan_state"] == {
+        "tracked_keys": 4,
+        "tracked_events": 17,
+        "expired_events": 9,
+        "evicted_keys": 2,
+        "dropped_events": 3,
+    }
+    assert "source_ip" not in str(payload)
+    assert "dest_port" not in str(payload)
 
 
 def test_snapshot_is_immutable_point_in_time_view():
@@ -75,8 +103,13 @@ def test_observability_rejects_naive_timestamps():
 def test_detection_engine_exposes_same_read_only_snapshot():
     suppressor = AlertSuppressor()
     engine = object.__new__(DetectionEngine)
-    engine.observability = DetectionObservability(suppressor)
+    engine.observability = DetectionObservability(
+        suppressor,
+        port_scan_snapshot=lambda: WindowSnapshot(1, 2, 3, 4, 5),
+    )
 
     suppressor.evaluate("alert-a")
+    snapshot = engine.metrics_snapshot()
 
-    assert engine.metrics_snapshot().suppression.emitted == 1
+    assert snapshot.suppression.emitted == 1
+    assert snapshot.port_scan_state == WindowSnapshot(1, 2, 3, 4, 5)

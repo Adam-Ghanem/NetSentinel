@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from ipaddress import IPv4Network, IPv6Network, ip_address, ip_network
-from typing import Callable
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -45,7 +45,10 @@ class ApprovedScannerPolicy(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    entries: tuple[ApprovedScannerEntry, ...] = Field(default_factory=tuple, max_length=_MAX_ENTRIES)
+    entries: tuple[ApprovedScannerEntry, ...] = Field(
+        default_factory=tuple,
+        max_length=_MAX_ENTRIES,
+    )
 
     @model_validator(mode="after")
     def reject_overlapping_networks(self) -> ApprovedScannerPolicy:

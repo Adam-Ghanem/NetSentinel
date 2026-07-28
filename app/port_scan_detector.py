@@ -7,6 +7,7 @@ from time import monotonic
 from app.contracts import PacketMetadata
 from app.event_windows import BoundedEventWindows, WindowSnapshot
 from app.port_scan_policy import PortScanPolicy
+from app.scanner_allowlist import ApprovedScannerAllowlist, ScannerAllowlistSnapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +27,7 @@ class UniquePortScanDetector:
         self,
         *,
         policy: PortScanPolicy | None = None,
+        scanner_allowlist: ApprovedScannerAllowlist | None = None,
         threshold: int | None = None,
         window_seconds: float | None = None,
         max_sources: int | None = None,
@@ -53,6 +55,7 @@ class UniquePortScanDetector:
         )
         self.threshold = self.policy.threshold
         self.window_seconds = self.policy.window_seconds
+        self._scanner_allowlist = scanner_allowlist or ApprovedScannerAllowlist()
         self._clock = clock
         self._windows: BoundedEventWindows[tuple[str, str], int] = BoundedEventWindows(
             window_seconds=self.policy.window_seconds,
@@ -71,6 +74,9 @@ class UniquePortScanDetector:
         assert packet.dest_ip is not None
         assert packet.dest_port is not None
 
+        if self._scanner_allowlist.allows(packet.source_ip):
+            return None
+
         key = (packet.source_ip, packet.dest_ip)
         now = self._clock()
         self._windows.add(key, packet.dest_port, observed_at=now)
@@ -88,8 +94,11 @@ class UniquePortScanDetector:
 
     def snapshot(self) -> WindowSnapshot:
         """Return aggregate bounded-state metrics without source identifiers."""
-
         return self._windows.snapshot()
+
+    def allowlist_snapshot(self) -> ScannerAllowlistSnapshot:
+        """Return aggregate scanner-approval decisions without configured networks."""
+        return self._scanner_allowlist.snapshot()
 
     @staticmethod
     def _is_eligible(packet: PacketMetadata) -> bool:

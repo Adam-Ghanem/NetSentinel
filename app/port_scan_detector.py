@@ -6,6 +6,7 @@ from time import monotonic
 
 from app.contracts import PacketMetadata
 from app.event_windows import BoundedEventWindows, WindowSnapshot
+from app.port_scan_policy import PortScanPolicy
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,24 +25,39 @@ class UniquePortScanDetector:
     def __init__(
         self,
         *,
-        threshold: int = 5,
-        window_seconds: float = 10.0,
-        max_sources: int = 10_000,
-        max_events_per_source: int = 1_000,
+        policy: PortScanPolicy | None = None,
+        threshold: int | None = None,
+        window_seconds: float | None = None,
+        max_sources: int | None = None,
+        max_events_per_source: int | None = None,
         clock: Callable[[], float] = monotonic,
     ) -> None:
-        if threshold < 2:
-            raise ValueError("threshold must be at least 2")
-        if max_events_per_source < threshold:
-            raise ValueError("max_events_per_source must be at least threshold")
+        if policy is not None and any(
+            value is not None
+            for value in (
+                threshold,
+                window_seconds,
+                max_sources,
+                max_events_per_source,
+            )
+        ):
+            raise ValueError("policy cannot be combined with individual policy overrides")
 
-        self.threshold = threshold
-        self.window_seconds = float(window_seconds)
+        self.policy = policy or PortScanPolicy(
+            threshold=threshold if threshold is not None else 5,
+            window_seconds=(window_seconds if window_seconds is not None else 10.0),
+            max_sources=max_sources if max_sources is not None else 10_000,
+            max_events_per_source=(
+                max_events_per_source if max_events_per_source is not None else 1_000
+            ),
+        )
+        self.threshold = self.policy.threshold
+        self.window_seconds = self.policy.window_seconds
         self._clock = clock
         self._windows: BoundedEventWindows[tuple[str, str], int] = BoundedEventWindows(
-            window_seconds=window_seconds,
-            max_keys=max_sources,
-            max_events_per_key=max_events_per_source,
+            window_seconds=self.policy.window_seconds,
+            max_keys=self.policy.max_sources,
+            max_events_per_key=self.policy.max_events_per_source,
             clock=clock,
         )
 

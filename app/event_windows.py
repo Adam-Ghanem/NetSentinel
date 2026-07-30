@@ -50,6 +50,7 @@ class BoundedEventWindows(Generic[KeyT, EventT]):
         self.max_events_per_key = max_events_per_key
         self._clock = clock
         self._windows: OrderedDict[KeyT, deque[_TimedEvent[EventT]]] = OrderedDict()
+        self._tracked_events = 0
         self._expired_events = 0
         self._evicted_keys = 0
         self._dropped_events = 0
@@ -63,14 +64,17 @@ class BoundedEventWindows(Generic[KeyT, EventT]):
         if key not in self._windows and len(self._windows) >= self.max_keys:
             _, evicted = self._windows.popitem(last=False)
             self._evicted_keys += 1
+            self._tracked_events -= len(evicted)
             self._dropped_events += len(evicted)
 
         window = self._windows.setdefault(key, deque())
         self._windows.move_to_end(key)
         window.append(_TimedEvent(observed_at=now, value=value))
+        self._tracked_events += 1
 
         while len(window) > self.max_events_per_key:
             window.popleft()
+            self._tracked_events -= 1
             self._dropped_events += 1
 
         return len(window)
@@ -109,6 +113,7 @@ class BoundedEventWindows(Generic[KeyT, EventT]):
         for key in empty_keys:
             del self._windows[key]
 
+        self._tracked_events -= removed
         self._expired_events += removed
         return removed
 
@@ -117,7 +122,7 @@ class BoundedEventWindows(Generic[KeyT, EventT]):
 
         return WindowSnapshot(
             tracked_keys=len(self._windows),
-            tracked_events=sum(len(window) for window in self._windows.values()),
+            tracked_events=self._tracked_events,
             expired_events=self._expired_events,
             evicted_keys=self._evicted_keys,
             dropped_events=self._dropped_events,

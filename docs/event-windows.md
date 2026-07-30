@@ -19,6 +19,14 @@ NetSentinel uses `BoundedEventWindows` as the state primitive for future scan, f
 
 Accessing a key marks it as recently used. When `max_keys` is reached, the least-recently-used key and all events associated with it are removed. This protects the process from source-cardinality attacks while preserving active detector state.
 
+## Snapshot performance
+
+The `tracked_events` value is maintained incrementally as events are added, expired, evicted, or dropped at the per-key limit. Snapshot generation therefore reads the aggregate counter directly instead of walking every retained deque. This keeps observability reads proportional to the fixed snapshot shape rather than the number of tracked events.
+
+The counter is an internal consistency invariant: every state mutation that changes retained events updates it in the same operation. Regression tests cover normal insertion, per-key dropping, key eviction, and expiry so future state changes cannot silently make the metric drift from the actual bounded state.
+
+## Snapshot counters
+
 The snapshot counters distinguish normal expiry from capacity pressure:
 
 - `expired_events`: events removed because their time window elapsed.

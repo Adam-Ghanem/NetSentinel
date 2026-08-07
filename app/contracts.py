@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 _MITRE_TECHNIQUE_PATTERN = re.compile(r"^T\d{4}(?:\.\d{3})?$")
+_RULE_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{2,63}$")
 
 
 class Severity(str, Enum):
@@ -18,6 +19,13 @@ class Severity(str, Enum):
     MEDIUM = "Medium"
     HIGH = "High"
     CRITICAL = "Critical"
+
+
+class RuleStatus(str, Enum):
+    """Lifecycle state for reviewed detection content."""
+
+    ACTIVE = "active"
+    DEPRECATED = "deprecated"
 
 
 class PacketMetadata(BaseModel):
@@ -72,6 +80,14 @@ class DetectionRule(BaseModel):
     mitre_attack: str | None = None
     suppression_seconds: int | None = Field(default=None, ge=1, le=86_400)
 
+    # Lifecycle metadata is optional for backward-compatible rules. Once a
+    # stable rule_id is introduced, ownership and review evidence become mandatory.
+    rule_id: str | None = None
+    version: int = Field(default=1, ge=1, le=10_000)
+    status: RuleStatus = RuleStatus.ACTIVE
+    owner: str | None = Field(default=None, min_length=1, max_length=120)
+    last_reviewed_at: datetime | None = None
+
     protocol: str | None = None
     dest_port: int | None = Field(default=None, ge=0, le=65535)
     source_ip: str | None = None
@@ -92,6 +108,17 @@ class DetectionRule(BaseModel):
     time_window_seconds: int | None = Field(default=None, ge=1)
     mac_ip_mismatch: bool = False
 
+    @field_validator("rule_id")
+    @classmethod
+    def validate_rule_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if not _RULE_ID_PATTERN.fullmatch(normalized):
+            raise ValueError(
+                "rule_id must be 3-64 chars using lowercase letters, digits, '.', '_' or '-'")
+        return normalized
+
     @field_validator("protocol")
     @classmethod
     def normalize_protocol(cls, value: str | None) -> str | None:
@@ -103,6 +130,15 @@ class DetectionRule(BaseModel):
         if value is None:
             return None
         return str(ipaddress.ip_address(value))
+
+    @field_validator("last_reviewed_at")
+    @classmethod
+    def validate_review_timestamp(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("last_reviewed_at must be timezone-aware")
+        return value
 
     @field_validator("mitre_attack")
     @classmethod
@@ -141,6 +177,13 @@ class DetectionRule(BaseModel):
 
     @model_validator(mode="after")
     def validate_supported_conditions(self) -> DetectionRule:
+        if self.rule_id is not None and (
+            self.owner is None or self.last_reviewed_at is None
+        ):
+            raise ValueError(
+                "rule_id requires owner and timezone-aware last_reviewed_at"
+            )
+
         if self.mac_ip_mismatch:
             raise ValueError(
                 "mac_ip_mismatch is not supported until bounded ARP state is implemented"

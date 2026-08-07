@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from app.contracts import AlertRecord, DetectionRule, PacketMetadata, Severity
+from app.contracts import AlertRecord, DetectionRule, PacketMetadata, RuleStatus, Severity
 
 TIMESTAMP = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -54,6 +54,72 @@ def test_detection_rule_normalizes_severity_protocol_and_mitre_id():
     assert rule.severity is Severity.HIGH
     assert rule.protocol == "TLS"
     assert rule.mitre_attack == "T1071.001"
+
+
+def test_detection_rule_validates_lifecycle_metadata():
+    rule = DetectionRule(
+        name="Reviewed external TLS connection",
+        description="Detect outbound TLS metadata with reviewed ownership.",
+        severity="High",
+        protocol="TLS",
+        is_external_ip=True,
+        rule_id="net.tls.external",
+        version=3,
+        status=RuleStatus.ACTIVE,
+        owner="detection-team",
+        last_reviewed_at=TIMESTAMP,
+    )
+
+    assert rule.rule_id == "net.tls.external"
+    assert rule.version == 3
+    assert rule.status is RuleStatus.ACTIVE
+    assert rule.owner == "detection-team"
+    assert rule.last_reviewed_at == TIMESTAMP
+
+
+def test_detection_rule_normalizes_rule_id_and_rejects_invalid_lifecycle_values():
+    rule = DetectionRule(
+        name="Reviewed unusual port",
+        description="Detect selected destination ports.",
+        severity="Medium",
+        unusual_ports=(31337,),
+        rule_id="NETSCAN.Unusual-Port",
+        owner="soc",
+        last_reviewed_at=TIMESTAMP,
+    )
+
+    assert rule.rule_id == "netscan.unusual-port"
+
+    with pytest.raises(ValidationError, match="rule_id"):
+        DetectionRule(
+            name="Invalid rule identifier",
+            description="Reject unsafe identifiers.",
+            severity="Low",
+            protocol="TCP",
+            rule_id="bad rule id",
+            owner="soc",
+            last_reviewed_at=TIMESTAMP,
+        )
+
+    with pytest.raises(ValidationError, match="requires owner"):
+        DetectionRule(
+            name="Incomplete lifecycle",
+            description="Stable rules must carry review ownership.",
+            severity="Low",
+            protocol="TCP",
+            rule_id="netsentinel.lifecycle",
+        )
+
+    with pytest.raises(ValidationError, match="timezone-aware"):
+        DetectionRule(
+            name="Naive review timestamp",
+            description="Review evidence must include timezone information.",
+            severity="Low",
+            protocol="TCP",
+            rule_id="netsentinel.review",
+            owner="soc",
+            last_reviewed_at=datetime(2026, 1, 1),
+        )
 
 
 def test_detection_rule_validates_suppression_policy_bounds():

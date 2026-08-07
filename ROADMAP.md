@@ -12,8 +12,8 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 ## P1 — Detection and SOC Workflow
 
-6. **Typed detection interfaces** — delivered foundation: validated packet metadata, YAML rule, severity, MITRE ATT&CK, and alert persistence contracts with focused tests and CI enforcement. Remaining work: typed enrichment evidence and rule lifecycle metadata.
-7. **Stateful detection engine** — in progress: bounded duplicate suppression, validated per-rule cooldowns, aggregate suppression metrics, and a read-only metrics snapshot are delivered. Remaining work: explicit event windows, per-source cardinality controls, deterministic expiry, and stateful scan/flood/beaconing evaluation.
+6. **Typed detection interfaces** — delivered foundation: validated packet metadata, YAML rule, severity, MITRE ATT&CK, and alert persistence contracts with focused tests and CI enforcement. Rule lifecycle metadata is now also validated through stable identifiers, semantic version numbers, status, ownership, and timezone-aware review evidence. Remaining work: typed enrichment evidence.
+7. **Stateful detection engine** — in progress: bounded duplicate suppression, validated per-rule cooldowns, aggregate suppression metrics, a read-only metrics snapshot, and bounded event-window state are delivered. Remaining work: explicit per-source cardinality controls and stateful scan/flood/beaconing evaluation.
 8. **Detection engineering content** — realistic sample traffic, rule metadata, severity rationale, false-positive guidance, and MITRE ATT&CK mappings.
 9. **Alert enrichment** — normalized IOC context, cache expiry, provider failure handling, confidence fields, and evidence provenance.
 10. **Incident workflow** — alert-to-case linking, status transitions, ownership, notes, evidence, and audit history.
@@ -23,7 +23,7 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 11. **Service boundary/API quality** — separate collection, detection, persistence, and UI concerns; add versioned schemas and consistent errors.
 12. **Structured logging** — correlation IDs, safe field redaction, actionable event names, and configurable output.
 13. **Health and readiness checks** — extend the delivered database checks to rule loading, storage capacity, and optional provider status.
-14. **Metrics** — delivered foundation: sanitized process-local suppression snapshots. Remaining work: authenticated export, ingestion rate, parse failures, alert counts, rule latency, enrichment latency, and queue/backpressure signals.
+14. **Metrics** — delivered foundation: sanitized process-local suppression and bounded port-scan snapshots. Remaining work: authenticated export, ingestion rate, parse failures, alert counts, rule latency, enrichment latency, and queue/backpressure signals.
 15. **Performance controls** — bounded queues, batch writes, indexes, profiling fixtures, and documented capacity limits.
 
 ## P3 — Product and Release Readiness
@@ -36,4 +36,4 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 ## Current Focus
 
-The P0 safety foundation now includes migration-first database operations and a hardened, vulnerability-gated runtime image with SBOM evidence. Typed detection boundaries, bounded suppression, per-rule cooldowns, and sanitized process-local metrics now protect the alert path. The next highest-impact slice is bounded per-source event windows with deterministic expiry and explicit state-cardinality limits.
+The P0 safety foundation now includes migration-first database operations and a hardened, vulnerability-gated runtime image with SBOM evidence. Typed detection boundaries, bounded suppression, per-rule cooldowns, sanitized process-local metrics, bounded event windows, and reviewed rule lifecycle metadata now protect the alert path. The next highest-impact slice is completing reviewed scanner policy verification, then adding typed enrichment evidence and explicit state-cardinality controls.

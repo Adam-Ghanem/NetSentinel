@@ -21,6 +21,7 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - YAML rule loading for basic detection conditions.
 - Streamlit dashboard pages for login, overview metrics, packet display, alerts, cases, IOC lookup, and reports.
 - IOC enrichment structure with optional AbuseIPDB and VirusTotal API keys.
+- Fresh IOC enrichment results carry typed provenance evidence describing provider, source, query time, and outcome without storing API credentials.
 - PDF report generator module using ReportLab.
 - Docker and Docker Compose configuration for local deployment.
 - Automated parser and configuration tests on Python 3.10 and 3.12.
@@ -34,6 +35,7 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - Case management data model exists, but the dashboard workflow needs stronger integration with alerts.
 - Report generation module exists, but the dashboard download workflow needs to be completed.
 - Detection rules include stateful ideas, but the rule engine needs more complete time-window logic.
+- Enrichment provenance is typed for fresh results; cached legacy records remain backward-compatible and need an explicit evidence migration strategy.
 
 ### Planned
 
@@ -106,8 +108,8 @@ For development and test tooling:
 
 ```bash
 pip install -r requirements-dev.txt
-python -m ruff check app/config.py app/enrichment.py app/parser.py scripts/check_secrets.py tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
-python -m pytest tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
+python -m ruff check app/config.py app/contracts.py app/enrichment.py app/parser.py scripts/check_secrets.py tests/test_config.py tests/test_enrichment.py tests/test_enrichment_contracts.py tests/test_parser.py tests/test_secret_scanner.py
+python -m pytest tests/test_config.py tests/test_enrichment.py tests/test_enrichment_contracts.py tests/test_parser.py tests/test_secret_scanner.py
 python scripts/check_secrets.py .
 ```
 
@@ -172,7 +174,8 @@ Some rule fields in `default_rules.yaml` describe planned stateful behavior. The
 4. Review generated alerts.
 5. Create or update investigation cases.
 6. Enrich public indicators when API keys are configured.
-7. Generate a PDF report once dashboard export is fully connected.
+7. Review enrichment provenance to distinguish local classification from external provider evidence.
+8. Generate a PDF report once dashboard export is fully connected.
 
 ## Development Notes
 

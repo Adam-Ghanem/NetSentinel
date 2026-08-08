@@ -169,6 +169,34 @@ class DetectionRule(BaseModel):
         return self
 
 
+class EnrichmentEvidence(BaseModel):
+    """Validated provenance record for one external or local enrichment result."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    provider: str = Field(min_length=1, max_length=80)
+    source: str = Field(min_length=1, max_length=120)
+    queried_at: datetime
+    status: str = Field(min_length=1, max_length=40)
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    reference: str | None = Field(default=None, max_length=512)
+
+    @field_validator("provider", "source", "status")
+    @classmethod
+    def normalize_labels(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not normalized:
+            raise ValueError("enrichment evidence labels must not be empty")
+        return normalized
+
+    @field_validator("queried_at")
+    @classmethod
+    def require_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("queried_at must be timezone-aware")
+        return value
+
+
 class AlertRecord(BaseModel):
     """Validated alert payload accepted by database persistence."""
 

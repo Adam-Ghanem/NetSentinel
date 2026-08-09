@@ -10,7 +10,7 @@ alembic==1.18.5
 pydantic==2.11.7
 python-dotenv==1.2.2
 bcrypt==4.3.0
-cryptography==48.0.1
+cryptography==50.0.0
 pydantic-settings==2.10.1
 networkx==3.4.2
 pyvis==0.3.2

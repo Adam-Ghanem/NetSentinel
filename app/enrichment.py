@@ -1,8 +1,10 @@
 import json
+from datetime import datetime, timezone
 
 import requests
 
 from app.config import Config, Settings
+from app.contracts import EnrichmentEvidence
 from app.utils import get_timestamp, is_private_ip, is_public_ip
 
 
@@ -22,17 +24,42 @@ class Enrichment:
             "is_private": is_private_ip(ip_address),
             "is_public": is_public_ip(ip_address),
             "threat_intel": {},
+            "evidence": [],
             "checked_at": get_timestamp(),
         }
+
+        local_evidence = EnrichmentEvidence(
+            provider="netsentinel",
+            source="ip_classification",
+            queried_at=datetime.now(timezone.utc),
+            status="success",
+        )
+        enrichment_data["evidence"].append(local_evidence.model_dump(mode="json"))
 
         if enrichment_data["is_public"]:
             if self.config.ABUSEIPDB_API_KEY:
                 intel = self._query_abuseipdb(ip_address)
+                status = "success" if intel else "error"
+                evidence = EnrichmentEvidence(
+                    provider="abuseipdb",
+                    source="ip_reputation",
+                    queried_at=datetime.now(timezone.utc),
+                    status=status,
+                )
+                enrichment_data["evidence"].append(evidence.model_dump(mode="json"))
                 if intel:
                     enrichment_data["threat_intel"]["abuseipdb"] = intel
 
             if self.config.VIRUSTOTAL_API_KEY:
                 intel = self._query_virustotal(ip_address)
+                status = "success" if intel else "error"
+                evidence = EnrichmentEvidence(
+                    provider="virustotal",
+                    source="ip_reputation",
+                    queried_at=datetime.now(timezone.utc),
+                    status=status,
+                )
+                enrichment_data["evidence"].append(evidence.model_dump(mode="json"))
                 if intel:
                     enrichment_data["threat_intel"]["virustotal"] = intel
 

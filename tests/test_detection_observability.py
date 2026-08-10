@@ -66,6 +66,7 @@ def test_snapshot_exposes_sanitized_port_scan_state_pressure():
         "expired_events": 9,
         "evicted_keys": 2,
         "dropped_events": 3,
+        "cardinality_limited_events": 0,
     }
     assert "source_ip" not in str(payload)
     assert "dest_port" not in str(payload)
@@ -113,3 +114,4 @@ def test_detection_engine_exposes_same_read_only_snapshot():
 
     assert snapshot.suppression.emitted == 1
     assert snapshot.port_scan_state == WindowSnapshot(1, 2, 3, 4, 5)
+    assert snapshot.port_scan_state.cardinality_limited_events == 0

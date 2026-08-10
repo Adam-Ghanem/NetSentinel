@@ -19,7 +19,7 @@ class WindowSnapshot:
     expired_events: int
     evicted_keys: int
     dropped_events: int
-    cardinality_limited_events: int
+    cardinality_limited_events: int = 0
 
 
 @dataclass(frozen=True, slots=True)

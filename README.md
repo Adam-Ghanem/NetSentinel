@@ -26,6 +26,7 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - Automated parser and configuration tests on Python 3.10 and 3.12.
 - Typed startup configuration with production safety validation.
 - Repository secret-hygiene scanning and safe environment defaults.
+- Contributor workflow and release-readiness checklists for repeatable engineering practice.
 
 ### Partially Implemented
 
@@ -44,7 +45,7 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - Dependency pinning and stronger Docker health checks.
 - Demo screenshots and sample data.
 
-See [ROADMAP.md](ROADMAP.md) for the prioritized professionalization backlog.
+See [ROADMAP.md](ROADMAP.md) for the prioritized professionalization backlog. Contributors should also read [CONTRIBUTING.md](CONTRIBUTING.md) and use the [release checklist](docs/RELEASE_CHECKLIST.md) for milestone or tagged releases.
 
 ## Architecture
 

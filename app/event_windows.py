@@ -19,6 +19,7 @@ class WindowSnapshot:
     expired_events: int
     evicted_keys: int
     dropped_events: int
+    cardinality_limited_events: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +37,7 @@ class BoundedEventWindows(Generic[KeyT, EventT]):
         window_seconds: float,
         max_keys: int = 10_000,
         max_events_per_key: int = 1_000,
+        max_distinct_values_per_key: int | None = None,
         clock: Callable[[], float] = monotonic,
     ) -> None:
         if window_seconds <= 0:
@@ -44,16 +46,20 @@ class BoundedEventWindows(Generic[KeyT, EventT]):
             raise ValueError("max_keys must be greater than zero")
         if max_events_per_key <= 0:
             raise ValueError("max_events_per_key must be greater than zero")
+        if max_distinct_values_per_key is not None and max_distinct_values_per_key <= 0:
+            raise ValueError("max_distinct_values_per_key must be greater than zero")
 
         self.window_seconds = float(window_seconds)
         self.max_keys = max_keys
         self.max_events_per_key = max_events_per_key
+        self.max_distinct_values_per_key = max_distinct_values_per_key
         self._clock = clock
         self._windows: OrderedDict[KeyT, deque[_TimedEvent[EventT]]] = OrderedDict()
         self._tracked_events = 0
         self._expired_events = 0
         self._evicted_keys = 0
         self._dropped_events = 0
+        self._cardinality_limited_events = 0
 
     def add(self, key: KeyT, value: EventT, *, observed_at: float | None = None) -> int:
         """Add an event and return the number of events remaining in its window."""
@@ -69,6 +75,16 @@ class BoundedEventWindows(Generic[KeyT, EventT]):
 
         window = self._windows.setdefault(key, deque())
         self._windows.move_to_end(key)
+
+        if (
+            self.max_distinct_values_per_key is not None
+            and not any(event.value == value for event in window)
+            and len({repr(event.value) for event in window}) >= self.max_distinct_values_per_key
+        ):
+            self._cardinality_limited_events += 1
+            self._dropped_events += 1
+            return len(window)
+
         window.append(_TimedEvent(observed_at=now, value=value))
         self._tracked_events += 1
 
@@ -126,4 +142,5 @@ class BoundedEventWindows(Generic[KeyT, EventT]):
             expired_events=self._expired_events,
             evicted_keys=self._evicted_keys,
             dropped_events=self._dropped_events,
+            cardinality_limited_events=self._cardinality_limited_events,
         )

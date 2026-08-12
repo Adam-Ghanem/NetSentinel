@@ -40,6 +40,24 @@ def test_window_enforces_per_key_event_limit():
     assert windows.snapshot().dropped_events == 1
 
 
+def test_window_enforces_per_key_distinct_value_limit():
+    windows = BoundedEventWindows[str, str](
+        window_seconds=60,
+        max_distinct_values_per_key=2,
+        clock=lambda: 0.0,
+    )
+
+    windows.add("source-a", "port-1")
+    windows.add("source-a", "port-2")
+    windows.add("source-a", "port-3")
+    windows.add("source-a", "port-2")
+
+    assert windows.values("source-a") == ("port-1", "port-2", "port-2")
+    snapshot = windows.snapshot()
+    assert snapshot.cardinality_limited_events == 1
+    assert snapshot.dropped_events == 1
+
+
 def test_window_evicts_least_recently_used_key():
     windows = BoundedEventWindows[str, int](
         window_seconds=60,
@@ -80,6 +98,7 @@ def test_invalid_limits_fail_fast():
         {"window_seconds": 0},
         {"window_seconds": 1, "max_keys": 0},
         {"window_seconds": 1, "max_events_per_key": 0},
+        {"window_seconds": 1, "max_distinct_values_per_key": 0},
     ]
 
     for arguments in invalid_arguments:

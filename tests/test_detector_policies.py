@@ -6,6 +6,7 @@ from app.detector_policies import (
     DetectorWindowPolicy,
     get_detector_policy,
 )
+from app.event_windows import BoundedEventWindows
 
 
 def test_default_policies_cover_all_stateful_detector_families():
@@ -26,14 +27,12 @@ def test_detector_policy_lookup_is_stable_and_immutable():
 
 
 def test_detector_policy_rejects_unbounded_or_invalid_limits():
-    invalid = {
-        "window_seconds": 0,
-        "max_keys": 1,
-        "max_events_per_key": 1,
-        "max_distinct_values_per_key": 1,
-    }
-
-    for field in invalid:
+    for field in (
+        "window_seconds",
+        "max_keys",
+        "max_events_per_key",
+        "max_distinct_values_per_key",
+    ):
         arguments = {
             "kind": DetectorKind.SCAN,
             "window_seconds": 1,
@@ -52,3 +51,13 @@ def test_policy_values_are_bounded_positive_state_budgets():
         assert policy.max_keys > 0
         assert policy.max_events_per_key > 0
         assert policy.max_distinct_values_per_key > 0
+
+
+def test_event_window_can_be_constructed_from_detector_policy():
+    policy = get_detector_policy(DetectorKind.BEACON)
+    windows = BoundedEventWindows.from_policy(policy, clock=lambda: 0.0)
+
+    assert windows.window_seconds == policy.window_seconds
+    assert windows.max_keys == policy.max_keys
+    assert windows.max_events_per_key == policy.max_events_per_key
+    assert windows.max_distinct_values_per_key == policy.max_distinct_values_per_key

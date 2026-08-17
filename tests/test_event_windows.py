@@ -1,3 +1,4 @@
+from app.detector_policies import DEFAULT_DETECTOR_POLICIES, DetectorKind
 from app.event_windows import BoundedEventWindows
 
 
@@ -107,3 +108,14 @@ def test_invalid_limits_fail_fast():
         except ValueError:
             continue
         raise AssertionError(f"Expected ValueError for {arguments}")
+
+
+def test_default_detector_policies_enforce_distinct_value_budget():
+    for kind, policy in DEFAULT_DETECTOR_POLICIES.items():
+        windows = BoundedEventWindows.from_policy(policy, clock=lambda: 0.0)
+
+        for index in range(policy.max_distinct_values_per_key):
+            windows.add(kind.value, f"value-{index}")
+        windows.add(kind.value, "overflow")
+
+        assert windows.snapshot().cardinality_limited_events == 1

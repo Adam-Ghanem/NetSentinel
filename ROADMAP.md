@@ -37,3 +37,5 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 ## Current Focus
 
 The P0 safety foundation now includes migration-first database operations and a hardened, vulnerability-gated runtime image with SBOM evidence. Typed detection boundaries, bounded suppression, per-rule cooldowns, sanitized process-local metrics, deterministic event expiry, explicit per-key cardinality controls, detector-specific bounded state budgets, and pure scan/flood/beacon evaluation now protect the alert path. The next highest-impact slice is integrating detector signals with alert creation while preserving suppression, provenance, and sanitized observability boundaries.
+
+The detector evaluation coverage now also explicitly verifies the shipped bounded policy contract and rejects unsafe state-budget combinations at the test boundary.

@@ -31,13 +31,7 @@ class DetectorSignal:
 class StatefulDetector:
     """Evaluate one detector family over an explicitly bounded event window."""
 
-    def __init__(
-        self,
-        policy: DetectorWindowPolicy,
-        *,
-        threshold: int | float,
-        clock=None,
-    ) -> None:
+    def __init__(self, policy: DetectorWindowPolicy, *, threshold: int | float, clock=None) -> None:
         if threshold <= 0:
             raise ValueError("threshold must be greater than zero")
         self.policy = policy
@@ -45,11 +39,8 @@ class StatefulDetector:
         self._windows = BoundedEventWindows.from_policy(policy, clock=clock) if clock else BoundedEventWindows.from_policy(policy)
 
     def observe(self, observation: DetectorObservation) -> DetectorSignal:
-        count = self._windows.add(
-            observation.key,
-            observation.value,
-            observed_at=observation.observed_at,
-        )
+        value = (observation.value, observation.observed_at) if self.policy.kind is DetectorKind.BEACON else observation.value
+        count = self._windows.add(observation.key, value, observed_at=observation.observed_at)
         values = self._windows.values(observation.key, now=observation.observed_at)
 
         if self.policy.kind is DetectorKind.SCAN:
@@ -57,7 +48,8 @@ class StatefulDetector:
         elif self.policy.kind is DetectorKind.FLOOD:
             score = float(count)
         else:
-            intervals = [b - a for a, b in zip(values, values[1:]) if isinstance(a, (int, float)) and isinstance(b, (int, float))]
+            timestamps = [item[1] for item in values]
+            intervals = [b - a for a, b in zip(timestamps, timestamps[1:]) if b > a]
             if not intervals:
                 score = 0.0
             else:

@@ -24,6 +24,7 @@ env/
 
 # Local databases and runtime state
 *.db
+*.log
 *.db-shm
 *.db-wal
 *.sqlite

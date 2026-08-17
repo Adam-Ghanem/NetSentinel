@@ -111,6 +111,12 @@ python -m pytest tests/test_config.py tests/test_parser.py tests/test_secret_sca
 python scripts/check_secrets.py .
 ```
 
+The same focused checks are available through the Makefile:
+
+```bash
+make check
+```
+
 Create a local administrator without hardcoded credentials:
 
 ```bash

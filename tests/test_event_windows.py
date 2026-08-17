@@ -1,4 +1,4 @@
-from app.detector_policies import DEFAULT_DETECTOR_POLICIES, DetectorKind
+from app.detector_policies import DEFAULT_DETECTOR_POLICIES
 from app.event_windows import BoundedEventWindows
 
 

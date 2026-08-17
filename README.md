@@ -180,6 +180,10 @@ The project is intentionally small and educational. It is useful for demonstrati
 
 Before presenting the project as a completed platform, the remaining partial features should be completed and tested.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the local development setup, validation commands, security guidance, and pull-request workflow.
+
 ## License
 
 This project is provided for defensive security education and portfolio use.

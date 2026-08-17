@@ -51,6 +51,18 @@ git checkout -b docs/improve-contributor-guide
 
 Use a concise imperative commit subject, such as `docs: clarify local contributor workflow`. Avoid unrelated formatting changes, generated files, and artificial commits that do not improve the project.
 
+### GitHub attribution
+
+For commits to appear on the intended GitHub profile, configure Git with an email address that is verified on that account, such as the account’s GitHub-provided `users.noreply.github.com` address:
+
+```bash
+git config user.name "Your GitHub name"
+git config user.email "YOUR_ID+YOUR_USERNAME@users.noreply.github.com"
+git config --get user.email
+```
+
+Check the author and email shown by `git log -1 --format=fuller` before pushing. If a commit was created with an unverified address, GitHub may show it in the repository history without attributing it to the profile’s contribution graph.
+
 ## Pull requests
 
 A pull request should explain what changed, why it was needed, and how it was validated. Include the relevant test commands and describe any known limitations. For dashboard or workflow changes, include a short reproduction or verification path. For security-sensitive changes, follow the private reporting process described in [SECURITY.md](SECURITY.md) instead of disclosing a vulnerability in a public issue.

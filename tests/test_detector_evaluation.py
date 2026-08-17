@@ -13,10 +13,5 @@ def test_default_detector_policies_define_bounded_windows():
 
 
 def test_default_detector_policies_use_distinct_state_budgets():
-    scan = DEFAULT_DETECTOR_POLICIES[DetectorKind.SCAN]
-    flood = DEFAULT_DETECTOR_POLICIES[DetectorKind.FLOOD]
-    beacon = DEFAULT_DETECTOR_POLICIES[DetectorKind.BEACON]
-
-    assert scan.window.max_distinct_values_per_key <= scan.window.max_events
-    assert flood.window.max_distinct_values_per_key <= flood.window.max_events
-    assert beacon.window.max_distinct_values_per_key <= beacon.window.max_events
+    for policy in DEFAULT_DETECTOR_POLICIES.values():
+        assert policy.window.max_distinct_values_per_key <= policy.window.max_events

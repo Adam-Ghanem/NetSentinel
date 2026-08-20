@@ -37,3 +37,7 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 ## Current Focus
 
 The P0 safety foundation now includes migration-first database operations and a hardened, vulnerability-gated runtime image with SBOM evidence. Typed detection boundaries, bounded suppression, per-rule cooldowns, sanitized process-local metrics, deterministic event expiry, and explicit per-key cardinality controls now protect the alert path. The next highest-impact slice is detector-specific stateful evaluation for scan, flood, and beaconing behaviors.
+
+## Contributor Quick Check
+
+Before opening a pull request, run the focused lint and test commands documented in the README, then run the repository secret scanner. Keep changes small and scoped so each contribution is easy to review and validate.

@@ -13,7 +13,7 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 ## P1 — Detection and SOC Workflow
 
 6. **Typed detection interfaces** — delivered foundation: validated packet metadata, YAML rule, severity, MITRE ATT&CK, and alert persistence contracts with focused tests and CI enforcement. Remaining work: typed enrichment evidence and rule lifecycle metadata.
-7. **Stateful detection engine** — in progress: bounded duplicate suppression, validated per-rule cooldowns, aggregate suppression metrics, a read-only metrics snapshot, deterministic event expiry, and explicit per-key event/value cardinality limits are delivered. Remaining work: stateful scan/flood/beaconing evaluation and detector-specific window policies.
+7. **Stateful detection engine** — in progress: bounded duplicate suppression, validated per-rule cooldowns, aggregate suppression metrics, a read-only metrics snapshot, deterministic event expiry, explicit per-key event/value cardinality limits, detector-specific bounded window policies, and pure scan/flood/beacon evaluation are delivered. Remaining work: integrate detector signals with the production alert pipeline and add detector-specific false-positive guidance.
 8. **Detection engineering content** — realistic sample traffic, rule metadata, severity rationale, false-positive guidance, and MITRE ATT&CK mappings.
 9. **Alert enrichment** — normalized IOC context, cache expiry, provider failure handling, confidence fields, and evidence provenance.
 10. **Incident workflow** — alert-to-case linking, status transitions, ownership, notes, evidence, and audit history.
@@ -36,4 +36,6 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 ## Current Focus
 
-The P0 safety foundation now includes migration-first database operations and a hardened, vulnerability-gated runtime image with SBOM evidence. Typed detection boundaries, bounded suppression, per-rule cooldowns, sanitized process-local metrics, deterministic event expiry, and explicit per-key cardinality controls now protect the alert path. The next highest-impact slice is detector-specific stateful evaluation for scan, flood, and beaconing behaviors.
+The P0 safety foundation now includes migration-first database operations and a hardened, vulnerability-gated runtime image with SBOM evidence. Typed detection boundaries, bounded suppression, per-rule cooldowns, sanitized process-local metrics, deterministic event expiry, explicit per-key cardinality controls, detector-specific bounded state budgets, and pure scan/flood/beacon evaluation now protect the alert path. The next highest-impact slice is integrating detector signals with alert creation while preserving suppression, provenance, and sanitized observability boundaries.
+
+The detector evaluation coverage now also explicitly verifies the shipped bounded policy contract and rejects unsafe state-budget combinations at the test boundary.

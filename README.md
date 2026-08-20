@@ -46,6 +46,18 @@ This repository is a prototype, not a finished enterprise product. The documenta
 
 See [ROADMAP.md](ROADMAP.md) for the prioritized professionalization backlog.
 
+## Validation
+
+Before opening a pull request, run the same focused checks used by the repository documentation:
+
+```bash
+python -m ruff check app/config.py app/enrichment.py app/parser.py scripts/check_secrets.py tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
+python -m pytest tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
+python scripts/check_secrets.py .
+```
+
+A successful validation run should report no Ruff violations, all focused tests passing, and no high-confidence secrets detected by the repository scanner.
+
 ## Architecture
 
 ```text

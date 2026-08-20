@@ -26,6 +26,7 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - Automated parser and configuration tests on Python 3.10 and 3.12.
 - Typed startup configuration with production safety validation.
 - Repository secret-hygiene scanning and safe environment defaults.
+- Bounded state budgets for scan, flood, and beacon detector families with deterministic policy validation.
 
 ### Partially Implemented
 
@@ -33,7 +34,7 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - PCAP upload page exists, but full parsing and database ingestion are still in progress.
 - Case management data model exists, but the dashboard workflow needs stronger integration with alerts.
 - Report generation module exists, but the dashboard download workflow needs to be completed.
-- Detection rules include stateful ideas, but the rule engine needs more complete time-window logic.
+- Detection rules include stateful ideas, but detector-specific scan, flood, and beaconing evaluation is still in progress.
 
 ### Planned
 
@@ -44,7 +45,7 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - Dependency pinning and stronger Docker health checks.
 - Demo screenshots and sample data.
 
-See [ROADMAP.md](ROADMAP.md) for the prioritized professionalization backlog.
+See [ROADMAP.md](ROADMAP.md) and [docs/detection-window-policies.md](docs/detection-window-policies.md) for the prioritized professionalization backlog and stateful detection budget contract.
 
 ## Architecture
 
@@ -56,11 +57,13 @@ NetSentinel/
 │   ├── analyzer.py         # Traffic statistics and connection tracking
 │   ├── detection_engine.py # Alert creation from matched rules
 │   ├── rules_engine.py     # YAML rule loading and evaluation
+│   ├── detector_policies.py# Bounded state budgets by detector family
+│   ├── event_windows.py    # Deterministic bounded sliding windows
 │   ├── enrichment.py       # IOC lookup and local cache support
 │   ├── database.py         # SQLAlchemy models and database helper methods
 │   ├── report_generator.py # PDF report generation
 │   ├── case_manager.py     # Case creation and update helpers
-│   ├── config.py           # Validated environment configuration
+│   ├── config.py            # Validated environment configuration
 │   └── utils.py            # Shared utility functions and logging
 ├── dashboard/
 │   └── streamlit_app.py    # Streamlit user interface
@@ -72,6 +75,8 @@ NetSentinel/
 │   └── sample_packets.csv  # Sample packet data
 ├── tests/
 │   ├── test_config.py
+│   ├── test_detector_policies.py
+│   ├── test_event_windows.py
 │   ├── test_parser.py
 │   └── test_secret_scanner.py
 ├── reports/                # Generated reports
@@ -106,8 +111,8 @@ For development and test tooling:
 
 ```bash
 pip install -r requirements-dev.txt
-python -m ruff check app/config.py app/enrichment.py app/parser.py scripts/check_secrets.py tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
-python -m pytest tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
+python -m ruff check app/config.py app/detector_policies.py app/enrichment.py app/event_windows.py app/parser.py scripts/check_secrets.py tests/test_config.py tests/test_detector_policies.py tests/test_event_windows.py tests/test_parser.py tests/test_secret_scanner.py
+python -m pytest tests/test_config.py tests/test_detector_policies.py tests/test_event_windows.py tests/test_parser.py tests/test_secret_scanner.py
 python scripts/check_secrets.py .
 ```
 
@@ -168,7 +173,7 @@ The dashboard should be available on port `8501`.
 
 Rules are stored in YAML format under the `rules/` directory. The current rule engine supports a basic subset of conditions such as protocol, destination port, source IP, TCP flags, DNS query patterns, packet thresholds, unique destination ports, and selected unusual ports.
 
-Some rule fields in `default_rules.yaml` describe planned stateful behavior. They should be treated as roadmap items until the engine fully supports time-window tracking.
+Stateful detector implementations use explicit bounded policies for scan, flood, and beacon families. The policy layer controls resource budgets independently from maliciousness thresholds; see [docs/detection-window-policies.md](docs/detection-window-policies.md).
 
 ## Example Workflow
 

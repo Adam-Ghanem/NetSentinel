@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from time import monotonic
 from typing import Generic, TypeVar
 
+from app.detector_policies import DetectorWindowPolicy
+
 KeyT = TypeVar("KeyT", bound=Hashable)
 EventT = TypeVar("EventT")
 
@@ -60,6 +62,23 @@ class BoundedEventWindows(Generic[KeyT, EventT]):
         self._evicted_keys = 0
         self._dropped_events = 0
         self._cardinality_limited_events = 0
+
+    @classmethod
+    def from_policy(
+        cls,
+        policy: DetectorWindowPolicy,
+        *,
+        clock: Callable[[], float] = monotonic,
+    ) -> BoundedEventWindows[KeyT, EventT]:
+        """Build a bounded window from a detector-specific state budget."""
+
+        return cls(
+            window_seconds=policy.window_seconds,
+            max_keys=policy.max_keys,
+            max_events_per_key=policy.max_events_per_key,
+            max_distinct_values_per_key=policy.max_distinct_values_per_key,
+            clock=clock,
+        )
 
     def add(self, key: KeyT, value: EventT, *, observed_at: float | None = None) -> int:
         """Add an event and return the number of events remaining in its window."""

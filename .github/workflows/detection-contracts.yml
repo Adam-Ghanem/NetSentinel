@@ -10,6 +10,7 @@ on:
       - "app/event_windows.py"
       - "app/port_scan_detector.py"
       - "app/port_scan_policy.py"
+      - "app/scanner_allowlist.py"
       - "app/parser.py"
       - "app/rules_engine.py"
       - "app/detection_engine.py"
@@ -22,12 +23,15 @@ on:
       - "tests/test_port_scan_detector.py"
       - "tests/test_port_scan_integration.py"
       - "tests/test_port_scan_policy.py"
+      - "tests/test_scanner_allowlist.py"
+      - "tests/test_scanner_allowlist_integration.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
       - "docs/alert-suppression.md"
       - "docs/detection-observability.md"
       - "docs/event-windows.md"
       - "docs/port-scan-detection.md"
+      - "docs/scanner-allowlisting.md"
       - "requirements.txt"
       - "requirements-dev.txt"
       - ".github/workflows/detection-contracts.yml"
@@ -40,6 +44,7 @@ on:
       - "app/event_windows.py"
       - "app/port_scan_detector.py"
       - "app/port_scan_policy.py"
+      - "app/scanner_allowlist.py"
       - "app/parser.py"
       - "app/rules_engine.py"
       - "app/detection_engine.py"
@@ -52,12 +57,15 @@ on:
       - "tests/test_port_scan_detector.py"
       - "tests/test_port_scan_integration.py"
       - "tests/test_port_scan_policy.py"
+      - "tests/test_scanner_allowlist.py"
+      - "tests/test_scanner_allowlist_integration.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
       - "docs/alert-suppression.md"
       - "docs/detection-observability.md"
       - "docs/event-windows.md"
       - "docs/port-scan-detection.md"
+      - "docs/scanner-allowlisting.md"
       - "requirements.txt"
       - "requirements-dev.txt"
       - ".github/workflows/detection-contracts.yml"
@@ -108,6 +116,7 @@ jobs:
           app/event_windows.py
           app/port_scan_detector.py
           app/port_scan_policy.py
+          app/scanner_allowlist.py
           app/parser.py
           app/rules_engine.py
           app/detection_engine.py
@@ -119,6 +128,8 @@ jobs:
           tests/test_port_scan_detector.py
           tests/test_port_scan_integration.py
           tests/test_port_scan_policy.py
+          tests/test_scanner_allowlist.py
+          tests/test_scanner_allowlist_integration.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py
 
@@ -133,5 +144,7 @@ jobs:
           tests/test_port_scan_detector.py
           tests/test_port_scan_integration.py
           tests/test_port_scan_policy.py
+          tests/test_scanner_allowlist.py
+          tests/test_scanner_allowlist_integration.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 
-class DetectorKind(StrEnum):
+class DetectorKind(str, Enum):
     """Stateful detector families with explicit bounded-window policies."""
 
     SCAN = "scan"

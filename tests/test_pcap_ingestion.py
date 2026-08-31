@@ -31,6 +31,18 @@ def packet(timestamp=1.0):
     return SimpleNamespace(time=timestamp)
 
 
+def test_ingestion_rejects_missing_capture(tmp_path):
+    missing = tmp_path / "missing.pcap"
+
+    with pytest.raises(PcapIngestionError, match="regular file"):
+        ingest_pcap_file(missing, CapturingDatabase())
+
+
+def test_ingestion_rejects_directory_path(tmp_path):
+    with pytest.raises(PcapIngestionError, match="regular file"):
+        ingest_pcap_file(tmp_path, CapturingDatabase())
+
+
 def test_ingestion_rejects_capture_above_upload_limit(tmp_path):
     capture = tmp_path / "large.pcap"
     capture.write_bytes(b"x" * 11)
@@ -68,6 +80,7 @@ def test_packet_budget_counts_every_packet_seen(monkeypatch, tmp_path):
 
     assert calls == 2
     assert len(database.packets) == 1
+    assert result.processed_packets == 2
     assert result.stored_packets == 1
     assert result.parse_errors == 1
     assert result.truncated is True

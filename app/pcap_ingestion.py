@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import os
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, BinaryIO, Callable
+from typing import Any, BinaryIO
 
 from scapy.all import PcapReader
 
@@ -35,6 +36,9 @@ class PcapIngestionPolicy:
             raise ValueError("batch_size must not exceed max_packets")
 
 
+DEFAULT_PCAP_INGESTION_POLICY = PcapIngestionPolicy()
+
+
 @dataclass(frozen=True)
 class PcapIngestionResult:
     processed_packets: int
@@ -51,7 +55,7 @@ def ingest_uploaded_capture(
     upload: BinaryIO,
     database: Any,
     *,
-    policy: PcapIngestionPolicy = PcapIngestionPolicy(),
+    policy: PcapIngestionPolicy = DEFAULT_PCAP_INGESTION_POLICY,
     parser: Callable[[Any, datetime], dict[str, Any]] = parse_packet,
     chunk_size: int = 1024 * 1024,
 ) -> PcapIngestionResult:
@@ -109,7 +113,7 @@ def ingest_pcap_file(
     path: str | Path,
     database: Any,
     *,
-    policy: PcapIngestionPolicy = PcapIngestionPolicy(),
+    policy: PcapIngestionPolicy = DEFAULT_PCAP_INGESTION_POLICY,
     parser: Callable[[Any, datetime], dict[str, Any]] = parse_packet,
 ) -> PcapIngestionResult:
     capture_path = Path(path)

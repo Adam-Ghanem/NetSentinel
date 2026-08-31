@@ -29,6 +29,7 @@ on:
       - "tests/test_port_scan_policy.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
+      - "tests/test_stateful_detection_integration.py"
       - "tests/test_syn_flood_detector.py"
       - "docs/alert-suppression.md"
       - "docs/detection-observability.md"
@@ -65,6 +66,7 @@ on:
       - "tests/test_port_scan_policy.py"
       - "tests/test_rules_engine_contracts.py"
       - "tests/test_parser.py"
+      - "tests/test_stateful_detection_integration.py"
       - "tests/test_syn_flood_detector.py"
       - "docs/alert-suppression.md"
       - "docs/detection-observability.md"
@@ -138,6 +140,7 @@ jobs:
           tests/test_port_scan_policy.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py
+          tests/test_stateful_detection_integration.py
           tests/test_syn_flood_detector.py
 
       - name: Run detection contract tests
@@ -154,4 +157,5 @@ jobs:
           tests/test_port_scan_policy.py
           tests/test_rules_engine_contracts.py
           tests/test_parser.py
+          tests/test_stateful_detection_integration.py
           tests/test_syn_flood_detector.py

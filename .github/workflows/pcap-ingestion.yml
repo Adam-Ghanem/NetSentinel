@@ -5,15 +5,19 @@ on:
     branches: [main]
     paths:
       - "app/pcap_ingestion.py"
+      - "scripts/ingest_pcap.py"
       - "tests/test_pcap_ingestion.py"
       - "tests/test_pcap_ingestion_security.py"
+      - "tests/test_pcap_cli.py"
       - ".github/workflows/pcap-ingestion.yml"
   push:
     branches: [main]
     paths:
       - "app/pcap_ingestion.py"
+      - "scripts/ingest_pcap.py"
       - "tests/test_pcap_ingestion.py"
       - "tests/test_pcap_ingestion_security.py"
+      - "tests/test_pcap_cli.py"
       - ".github/workflows/pcap-ingestion.yml"
 
 permissions:
@@ -57,11 +61,14 @@ jobs:
         run: >-
           python -m ruff check
           app/pcap_ingestion.py
+          scripts/ingest_pcap.py
           tests/test_pcap_ingestion.py
           tests/test_pcap_ingestion_security.py
+          tests/test_pcap_cli.py
 
       - name: Run PCAP ingestion contracts
         run: >-
           python -m pytest
           tests/test_pcap_ingestion.py
           tests/test_pcap_ingestion_security.py
+          tests/test_pcap_cli.py

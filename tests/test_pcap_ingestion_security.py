@@ -1,7 +1,44 @@
 from pathlib import Path
 
+import pytest
 
-def test_dashboard_pcap_ingestion_does_not_load_entire_capture_into_memory():
-    dashboard_source = Path("dashboard/streamlit_app.py").read_text(encoding="utf-8")
+from app.pcap_ingestion import PcapIngestionPolicy
 
-    assert "rdpcap" not in dashboard_source
+
+def test_pcap_ingestion_service_uses_streaming_reader():
+    source = Path("app/pcap_ingestion.py").read_text(encoding="utf-8")
+
+    assert "PcapReader" in source
+    assert "rdpcap" not in source
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ["max_upload_bytes", "max_packets", "max_parse_errors"],
+)
+def test_pcap_ingestion_policy_rejects_non_positive_bounds(field_name):
+    values = {
+        "max_upload_bytes": 1024,
+        "max_packets": 100,
+        "max_parse_errors": 5,
+    }
+    values[field_name] = 0
+
+    with pytest.raises(ValueError, match="greater than zero"):
+        PcapIngestionPolicy(**values)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ["max_upload_bytes", "max_packets", "max_parse_errors"],
+)
+def test_pcap_ingestion_policy_rejects_boolean_bounds(field_name):
+    values = {
+        "max_upload_bytes": 1024,
+        "max_packets": 100,
+        "max_parse_errors": 5,
+    }
+    values[field_name] = True
+
+    with pytest.raises(TypeError, match="must be an integer"):
+        PcapIngestionPolicy(**values)

@@ -54,6 +54,8 @@ class DetectionEngine:
         self.observability = DetectionObservability(
             self.alert_suppressor,
             port_scan_snapshot=self.port_scan_detector.snapshot,
+            syn_flood_snapshot=self.syn_flood_detector.snapshot,
+            beacon_snapshot=self.beacon_detector.snapshot,
             now=self._now,
         )
         self.intel = ThreatIntel()

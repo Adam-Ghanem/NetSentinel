@@ -7,6 +7,8 @@ import pytest
 import app.pcap_ingestion as ingestion
 from app.pcap_ingestion import PcapIngestionError, PcapIngestionPolicy, ingest_pcap_file
 
+PCAP_MAGIC = bytes.fromhex("d4c3b2a1")
+
 
 class CapturingDatabase:
     def __init__(self):
@@ -59,18 +61,22 @@ def packet(timestamp=1.0):
     return SimpleNamespace(time=timestamp)
 
 
+def write_capture_fixture(path):
+    path.write_bytes(PCAP_MAGIC + b"fixture")
+
+
 def test_uploaded_capture_ingestion_api_exists():
     assert callable(getattr(ingestion, "ingest_uploaded_capture", None))
 
 
 def test_uploaded_capture_is_staged_in_bounded_chunks_and_cleaned(monkeypatch):
-    upload = TrackingUpload(b"abcdef")
+    upload = TrackingUpload(PCAP_MAGIC + b"ab")
     staged_paths = []
 
     def fake_ingest(path, database, *, policy, parser):
         staged_path = Path(path)
         staged_paths.append(staged_path)
-        assert staged_path.read_bytes() == b"abcdef"
+        assert staged_path.read_bytes() == PCAP_MAGIC + b"ab"
         return ingestion.PcapIngestionResult(1, 1, 0, False)
 
     monkeypatch.setattr(ingestion, "ingest_pcap_file", fake_ingest)
@@ -87,7 +93,7 @@ def test_uploaded_capture_is_staged_in_bounded_chunks_and_cleaned(monkeypatch):
 
 
 def test_uploaded_capture_rejects_bytes_beyond_limit(monkeypatch):
-    upload = TrackingUpload(b"abcdef")
+    upload = TrackingUpload(PCAP_MAGIC + b"ab")
     called = False
 
     def fake_ingest(*_args, **_kwargs):
@@ -121,7 +127,7 @@ def test_ingestion_rejects_directory_path(tmp_path):
 
 def test_ingestion_rejects_capture_above_upload_limit(tmp_path):
     capture = tmp_path / "large.pcap"
-    capture.write_bytes(b"x" * 11)
+    capture.write_bytes(PCAP_MAGIC + b"x" * 7)
 
     with pytest.raises(PcapIngestionError, match="upload limit"):
         ingest_pcap_file(
@@ -133,7 +139,7 @@ def test_ingestion_rejects_capture_above_upload_limit(tmp_path):
 
 def test_packet_budget_counts_every_packet_seen(monkeypatch, tmp_path):
     capture = tmp_path / "capture.pcap"
-    capture.write_bytes(b"pcap")
+    write_capture_fixture(capture)
     FakeReader.packets = [packet(1), packet(2), packet(3)]
     monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
 
@@ -164,7 +170,7 @@ def test_packet_budget_counts_every_packet_seen(monkeypatch, tmp_path):
 
 def test_batch_capable_database_receives_bounded_flushes(monkeypatch, tmp_path):
     capture = tmp_path / "capture.pcap"
-    capture.write_bytes(b"pcap")
+    write_capture_fixture(capture)
     FakeReader.packets = [packet(index) for index in range(1, 6)]
     monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
 
@@ -190,7 +196,7 @@ def test_batch_capable_database_receives_bounded_flushes(monkeypatch, tmp_path):
 
 def test_database_write_errors_are_not_misclassified_as_parse_errors(monkeypatch, tmp_path):
     capture = tmp_path / "capture.pcap"
-    capture.write_bytes(b"pcap")
+    write_capture_fixture(capture)
     FakeReader.packets = [packet(1)]
     monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
 
@@ -203,7 +209,7 @@ def test_database_write_errors_are_not_misclassified_as_parse_errors(monkeypatch
 
 def test_parse_error_budget_fails_closed(monkeypatch, tmp_path):
     capture = tmp_path / "capture.pcap"
-    capture.write_bytes(b"pcap")
+    write_capture_fixture(capture)
     FakeReader.packets = [packet(1), packet(2)]
     monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
 

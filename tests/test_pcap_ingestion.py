@@ -1,3 +1,5 @@
+from io import BytesIO
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -27,8 +29,66 @@ class FakeReader:
         return False
 
 
+class TrackingUpload(BytesIO):
+    def __init__(self, data):
+        super().__init__(data)
+        self.read_sizes = []
+
+    def read(self, size=-1):
+        self.read_sizes.append(size)
+        return super().read(size)
+
+
 def packet(timestamp=1.0):
     return SimpleNamespace(time=timestamp)
+
+
+def test_uploaded_capture_ingestion_api_exists():
+    assert callable(getattr(ingestion, "ingest_uploaded_capture", None))
+
+
+def test_uploaded_capture_is_staged_in_bounded_chunks_and_cleaned(monkeypatch):
+    upload = TrackingUpload(b"abcdef")
+    staged_paths = []
+
+    def fake_ingest(path, database, *, policy, parser):
+        staged_path = Path(path)
+        staged_paths.append(staged_path)
+        assert staged_path.read_bytes() == b"abcdef"
+        return ingestion.PcapIngestionResult(1, 1, 0, False)
+
+    monkeypatch.setattr(ingestion, "ingest_pcap_file", fake_ingest)
+    result = ingestion.ingest_uploaded_capture(
+        upload,
+        CapturingDatabase(),
+        policy=PcapIngestionPolicy(max_upload_bytes=10, max_packets=5, max_parse_errors=2),
+        chunk_size=2,
+    )
+
+    assert result.stored_packets == 1
+    assert upload.read_sizes == [2, 2, 2, 2]
+    assert staged_paths and not staged_paths[0].exists()
+
+
+def test_uploaded_capture_rejects_bytes_beyond_limit(monkeypatch):
+    upload = TrackingUpload(b"abcdef")
+    called = False
+
+    def fake_ingest(*_args, **_kwargs):
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr(ingestion, "ingest_pcap_file", fake_ingest)
+
+    with pytest.raises(PcapIngestionError, match="upload limit"):
+        ingestion.ingest_uploaded_capture(
+            upload,
+            CapturingDatabase(),
+            policy=PcapIngestionPolicy(max_upload_bytes=5, max_packets=5, max_parse_errors=2),
+            chunk_size=2,
+        )
+
+    assert called is False
 
 
 def test_ingestion_rejects_missing_capture(tmp_path):

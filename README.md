@@ -1,137 +1,153 @@
-<p align="center">
-  <img src="assets/logo.svg" alt="NetSentinel logo" width="220">
-</p>
+# NetSentinel
 
-<h1 align="center">NetSentinel</h1>
+NetSentinel is a defensive network-monitoring and SOC engineering project built with Python, Scapy, Streamlit, SQLAlchemy, and bounded stateful detection components.
 
-NetSentinel is an educational network metadata monitoring prototype. It is built to demonstrate Python, Scapy, Streamlit, SQLAlchemy, bounded detection logic, and SOC-style investigation workflows.
+It is designed for learning, lab environments, portfolio work, and controlled defensive monitoring where packet inspection is authorized.
 
-The project is intended for learning, lab environments, and portfolio demonstration. It should be used only in environments where monitoring is allowed.
+## What NetSentinel Does
 
-## Current Project Status
+NetSentinel turns network metadata into analyst-friendly evidence through a small, inspectable detection pipeline:
 
-This repository is a prototype, not a finished enterprise product. The documentation below separates completed work from features that are still in progress.
+- parses Ethernet, ARP, IPv4, TCP, UDP, ICMP, DNS, and selected HTTP metadata;
+- tracks traffic and connection context;
+- evaluates typed YAML-backed detection rules;
+- detects unique-destination-port scans;
+- detects per-service TCP SYN floods;
+- detects periodic TCP beaconing behavior;
+- suppresses repeated alerts through bounded cooldown state;
+- persists validated alerts and investigation data through SQLAlchemy;
+- exposes sanitized process-local detection metrics;
+- supports IOC enrichment with optional external provider keys;
+- provides a Streamlit SOC dashboard for packets, alerts, cases, IOC lookup, and reports.
 
-### Implemented
+## Detection Engineering
 
-- Metadata parsing for Ethernet, ARP, IPv4, TCP, UDP, ICMP, DNS, and basic HTTP fields.
-- SQLAlchemy models for packets, connections, alerts, cases, IOC cache entries, and users.
-- Local SQLite storage for packet metadata and alerts.
-- Password hashing with bcrypt for local dashboard authentication.
-- YAML rule loading for basic detection conditions.
-- Bounded stateful detection for unique-destination-port scans, per-service TCP SYN floods, and periodic TCP beaconing.
-- Immutable detector policies with deterministic expiry and explicit flow/event capacity limits.
-- Sanitized process-local suppression and detector-pressure metrics without IP, port, or payload labels.
-- Streamlit dashboard pages for login, overview metrics, packet display, alerts, cases, IOC lookup, and reports.
-- IOC enrichment structure with optional AbuseIPDB and VirusTotal API keys.
-- PDF report generator module using ReportLab.
-- Docker and Docker Compose configuration for local deployment.
-- Automated detection, parser, configuration, database, migration, and security contracts on Python 3.10 and 3.12.
-- Typed startup configuration with production safety validation.
-- Repository secret-hygiene scanning and safe environment defaults.
+The stateful detection layer is intentionally bounded and explicit. Detector state uses deterministic expiry, per-key limits, and global cardinality controls so memory growth is constrained under noisy traffic.
 
-### Partially Implemented
+| Detector | Behavior | Default ATT&CK mapping |
+| --- | --- | --- |
+| Unique destination-port scan | TCP SYN activity across multiple destination ports | T1046 |
+| TCP SYN flood | High SYN volume against one destination service | T1498 |
+| Periodic network beacon | Repeated connections with a stable interval | T1071 |
 
-- Live metadata collection backend exists, but the dashboard workflow still needs improvement.
-- PCAP upload page exists, but full parsing and database ingestion are still in progress.
-- Case management data model exists, but the dashboard workflow needs stronger integration with alerts.
-- Report generation module exists, but the dashboard download workflow needs to be completed.
-- Stateful detector policies are code-defined and validated; a reviewed runtime policy-loading/allowlisting boundary is still future work.
+Detailed design and operational guidance:
 
-### Planned
+- [Port-scan detection](docs/port-scan-detection.md)
+- [SYN-flood detection](docs/syn-flood-detection.md)
+- [Beacon detection](docs/beacon-detection.md)
+- [Bounded event windows](docs/event-windows.md)
+- [Alert suppression](docs/alert-suppression.md)
+- [Detection observability](docs/detection-observability.md)
 
-- Evidence-driven detector tuning using realistic traffic fixtures.
-- Better connection tracking and persistent connection logs.
-- Improved dashboard actions for live collection, case updates, and report export.
-- Broader end-to-end integration coverage.
-- Authenticated metrics/API export and additional operational signals.
-- Demo screenshots and sample data.
-
-See [ROADMAP.md](ROADMAP.md) for the prioritized professionalization backlog.
-
-## Validation
-
-Before opening a pull request, run the repository checks that match the area you changed. The Detection Contracts workflow validates bounded detector behavior and integration on Python 3.10 and 3.12. General security checks should also include the repository secret scanner.
-
-```bash
-python -m pytest tests/test_port_scan_detector.py tests/test_syn_flood_detector.py tests/test_beacon_detector.py tests/test_stateful_detection_integration.py
-python scripts/check_secrets.py .
-```
-
-The complete CI suite also covers configuration, database migrations, container hardening, dependency policy, and supply-chain checks.
+The detectors are evidence signals, not automatic proof of compromise. Scanner traffic, monitoring systems, automation, retries, and legitimate periodic software can produce similar patterns, so alerts should be validated with asset and operational context.
 
 ## Architecture
 
 ```text
-NetSentinel/
-├── app/
-│   ├── sniffer.py             # Scapy-based collection wrapper
-│   ├── parser.py              # Metadata extraction
-│   ├── analyzer.py            # Traffic statistics and connection tracking
-│   ├── detection_engine.py    # Typed alert orchestration
-│   ├── port_scan_detector.py  # Bounded unique-port scan state
-│   ├── syn_flood_detector.py  # Bounded per-service SYN-rate state
-│   ├── beacon_detector.py     # Bounded periodic connection state
-│   ├── event_windows.py       # Shared bounded sliding-window primitive
-│   ├── rules_engine.py        # YAML rule loading and evaluation
-│   ├── enrichment.py          # IOC lookup and local cache support
-│   ├── database.py            # SQLAlchemy models and database helper methods
-│   ├── report_generator.py    # PDF report generation
-│   ├── case_manager.py        # Case creation and update helpers
-│   ├── config.py              # Validated environment configuration
-│   └── utils.py               # Shared utility functions and logging
-├── dashboard/
-│   └── streamlit_app.py       # Streamlit user interface
-├── rules/
-│   └── default_rules.yaml     # Example detection rules
-├── scripts/
-│   └── check_secrets.py       # Deterministic repository secret scanner
-├── data/
-│   └── sample_packets.csv     # Sample packet data
-├── tests/                     # Unit and integration contracts
-├── reports/                   # Generated reports
-├── requirements.txt
-├── requirements-dev.txt
-├── pyproject.toml
-├── Dockerfile
-├── docker-compose.yml
-└── README.md
+packet source
+    |
+    v
+sniffer -> parser -> analyzer
+                    |
+                    v
+             DetectionEngine
+              /     |      \
+             /      |       \
+      YAML rules  stateful   threat intel
+                  detectors
+                     |
+                     v
+              suppression
+                     |
+                     v
+              validated alert
+                     |
+             +-------+-------+
+             |               |
+             v               v
+          database        dashboard
 ```
 
-## Requirements
+Core modules:
+
+```text
+app/
+├── sniffer.py
+├── parser.py
+├── analyzer.py
+├── detection_engine.py
+├── rules_engine.py
+├── port_scan_detector.py
+├── port_scan_policy.py
+├── syn_flood_detector.py
+├── syn_flood_policy.py
+├── beacon_detector.py
+├── beacon_policy.py
+├── event_windows.py
+├── alert_suppression.py
+├── detection_observability.py
+├── enrichment.py
+├── database.py
+├── report_generator.py
+├── case_manager.py
+└── config.py
+```
+
+## Current Status
+
+### Implemented
+
+- typed packet, rule, severity, and alert contracts;
+- bounded stateful scan, SYN-flood, and beacon detection;
+- duplicate-alert suppression with cooldowns;
+- sanitized detector-pressure and suppression metrics;
+- SQLite-backed packet, alert, case, IOC-cache, and user models;
+- Alembic migration and schema-readiness tooling;
+- local authentication with bcrypt password hashing;
+- Streamlit dashboard surfaces for SOC-style investigation;
+- IOC enrichment structure for AbuseIPDB and VirusTotal;
+- PDF report generation module;
+- exact dependency pins and dependency-policy checks;
+- repository secret scanning;
+- non-root Docker runtime, health checks, migration jobs, and container security gates;
+- GitHub Actions coverage across Python 3.10 and 3.12.
+
+### Still in Progress
+
+- complete PCAP ingestion into the database workflow;
+- stronger live-collection controls and dashboard integration;
+- alert-to-case investigation workflow improvements;
+- dashboard report-download integration;
+- reviewed runtime detector configuration and scoped allowlisting;
+- authenticated metrics/API export;
+- realistic traffic fixtures and broader end-to-end testing;
+- clearer sensor/UI separation for larger deployments.
+
+See [ROADMAP.md](ROADMAP.md) for the prioritized backlog.
+
+## Quick Start
+
+### Requirements
 
 - Python 3.10+
-- Docker and Docker Compose, optional
-- Elevated system permissions may be required for live network metadata collection
+- Docker and Docker Compose optional
+- elevated local permissions may be required for live packet capture
 
-## Local Setup
+### Local environment
 
 ```bash
 git clone https://github.com/Adam-Ghanem/NetSentinel.git
 cd NetSentinel
+
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Keep `.env` local. Add real API keys only through your local environment or secret manager; never commit them.
+Keep `.env` local. Real API keys should come from your environment or a secret manager and must not be committed.
 
-For development and test tooling:
-
-```bash
-pip install -r requirements-dev.txt
-python -m pytest tests/test_port_scan_detector.py tests/test_syn_flood_detector.py tests/test_beacon_detector.py tests/test_stateful_detection_integration.py
-python scripts/check_secrets.py .
-```
-
-The repository also provides focused Makefile targets:
-
-```bash
-make check
-```
-
-Create a local administrator without hardcoded credentials:
+Create a local administrator:
 
 ```bash
 python - <<'PY'
@@ -146,68 +162,83 @@ print("Local administrator created.")
 PY
 ```
 
-## Security Configuration
-
-The checked-in `.env.example` contains only safe defaults and empty secret fields. `DEMO_MODE` is disabled by default and cannot be enabled when `ENVIRONMENT=production`.
-
-CI performs security checks across repository secrets, dependency policy, database readiness, and the runtime container. The scanner is a preventive quality gate, not a replacement for credential rotation or a managed secret store. If a real credential is ever committed, revoke and rotate it immediately even after removing it from Git history.
-
-## Run the Dashboard
+Run the dashboard:
 
 ```bash
 streamlit run dashboard/streamlit_app.py --server.port=8501 --server.address=0.0.0.0
 ```
 
-Open the dashboard at:
+Then open `http://localhost:8501`.
 
-```text
-http://localhost:8501
-```
-
-## Docker Usage
+## Docker
 
 ```bash
 docker compose up --build
 ```
 
-The dashboard should be available on port `8501`.
+The runtime image is designed to run as a non-root user and includes health-check support. Production-style deployments should apply migrations through the provided migration workflow rather than relying on application-time schema creation.
 
-## Detection Engineering
+## Development and Verification
 
-Rules are stored in YAML under `rules/`, while detector-specific stateful behavior is implemented in bounded components with validated policies.
+Install development tooling:
 
-Current stateful detectors:
+```bash
+pip install -r requirements-dev.txt
+```
 
-- [Unique destination-port scan detection](docs/port-scan-detection.md)
-- [TCP SYN flood detection](docs/syn-flood-detection.md)
-- [Periodic network beacon detection](docs/beacon-detection.md)
+Run the repository quick check:
 
-Supporting safety boundaries:
+```bash
+make check
+```
 
-- [Bounded event windows](docs/event-windows.md)
-- [Alert suppression](docs/alert-suppression.md)
-- [Detection observability](docs/detection-observability.md)
+Focused stateful-detection verification:
 
-These components deliberately expose their assumptions, false-positive guidance, memory bounds, and distributed-deployment limitations instead of silently claiming enterprise-scale detection completeness.
+```bash
+python -m pytest \
+  tests/test_port_scan_detector.py \
+  tests/test_port_scan_policy.py \
+  tests/test_syn_flood_detector.py \
+  tests/test_syn_flood_policy.py \
+  tests/test_beacon_detector.py \
+  tests/test_beacon_policy.py \
+  tests/test_detection_observability.py \
+  tests/test_stateful_detection_integration.py
+```
 
-## Example Workflow
+Secret hygiene:
 
-1. Start the dashboard.
-2. Log in with a local account.
-3. Review stored metadata.
-4. Review generated alerts.
-5. Create or update investigation cases.
-6. Enrich public indicators when API keys are configured.
-7. Generate a PDF report once dashboard export is fully connected.
+```bash
+python scripts/check_secrets.py .
+```
 
-## Development Notes
+CI additionally covers configuration safety, database transactions, migrations, schema compatibility, container configuration, dependency policy, supply-chain checks, and the full stateful detection contract suite.
 
-The project is intentionally educational and incremental. It demonstrates networking, Python, Streamlit, SQLAlchemy, bounded stateful detection, basic detection engineering, and SOC workflow design while keeping incomplete product areas explicit.
+## Security Model
+
+NetSentinel follows a few simple defensive engineering rules:
+
+- packet-derived data is validated before alert persistence;
+- detector state is bounded rather than allowed to grow indefinitely;
+- observability avoids per-host high-cardinality labels and packet payloads;
+- credentials are not stored in the repository;
+- production configuration rejects unsafe demo behavior;
+- the container runtime is non-root;
+- database migrations and readiness checks are explicit deployment concerns;
+- alerts remain evidence that requires analyst validation.
+
+If a real credential is ever committed, remove it from the repository and rotate/revoke it immediately. Secret scanning is a preventive control, not a substitute for credential rotation.
+
+## Project Scope
+
+NetSentinel is not presented as a finished enterprise NDR platform. It is an actively improving defensive-security project focused on transparent detection logic, reproducible engineering, bounded state, and SOC workflow design.
+
+The current architecture is process-local. Multi-sensor or horizontally scaled deployments need deliberate shared-state or deterministic traffic partitioning before detector counts can be interpreted globally.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the local development setup, validation commands, security guidance, and pull-request workflow.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, validation commands, security guidance, and the pull-request workflow.
 
 ## License
 
-This project is provided for defensive security education and portfolio use.
+This project is provided for defensive security education, authorized lab use, and portfolio work.

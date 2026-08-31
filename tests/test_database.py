@@ -77,6 +77,46 @@ def test_transaction_rolls_back_on_error(database):
     assert database.get_alerts() == []
 
 
+def test_add_packets_persists_batch_in_one_contract(database):
+    packets = database.add_packets(
+        [
+            {
+                "protocol": "TCP",
+                "source_ip": "192.0.2.10",
+                "dest_ip": "198.51.100.20",
+                "packet_size": 60,
+            },
+            {
+                "protocol": "UDP",
+                "source_ip": "192.0.2.11",
+                "dest_ip": "198.51.100.21",
+                "packet_size": 72,
+            },
+        ]
+    )
+
+    assert len(packets) == 2
+    stored = database.get_packets(limit=10)
+    assert {packet.protocol for packet in stored} == {"TCP", "UDP"}
+
+
+def test_add_packets_accepts_empty_batch(database):
+    assert database.add_packets([]) == []
+    assert database.get_packets(limit=10) == []
+
+
+def test_add_packets_rolls_back_entire_batch_on_invalid_record(database):
+    with pytest.raises(TypeError):
+        database.add_packets(
+            [
+                {"protocol": "TCP", "packet_size": 60},
+                {"protocol": "UDP", "unknown_field": "invalid"},
+            ]
+        )
+
+    assert database.get_packets(limit=10) == []
+
+
 def test_sqlite_foreign_keys_are_enabled(database):
     with database.engine.connect() as connection:
         assert connection.execute(text("PRAGMA foreign_keys")).scalar_one() == 1

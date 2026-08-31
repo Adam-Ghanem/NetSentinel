@@ -4,7 +4,7 @@
 
 <h1 align="center">NetSentinel</h1>
 
-NetSentinel is an educational network metadata monitoring prototype. It is built to demonstrate Python, Scapy, Streamlit, SQLAlchemy, basic detection logic, and SOC-style investigation workflows.
+NetSentinel is an educational network metadata monitoring prototype. It is built to demonstrate Python, Scapy, Streamlit, SQLAlchemy, bounded detection logic, and SOC-style investigation workflows.
 
 The project is intended for learning, lab environments, and portfolio demonstration. It should be used only in environments where monitoring is allowed.
 
@@ -19,11 +19,14 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - Local SQLite storage for packet metadata and alerts.
 - Password hashing with bcrypt for local dashboard authentication.
 - YAML rule loading for basic detection conditions.
+- Bounded stateful detection for unique-destination-port scans, per-service TCP SYN floods, and periodic TCP beaconing.
+- Immutable detector policies with deterministic expiry and explicit flow/event capacity limits.
+- Sanitized process-local suppression and detector-pressure metrics without IP, port, or payload labels.
 - Streamlit dashboard pages for login, overview metrics, packet display, alerts, cases, IOC lookup, and reports.
 - IOC enrichment structure with optional AbuseIPDB and VirusTotal API keys.
 - PDF report generator module using ReportLab.
 - Docker and Docker Compose configuration for local deployment.
-- Automated parser and configuration tests on Python 3.10 and 3.12.
+- Automated detection, parser, configuration, database, migration, and security contracts on Python 3.10 and 3.12.
 - Typed startup configuration with production safety validation.
 - Repository secret-hygiene scanning and safe environment defaults.
 
@@ -33,60 +36,60 @@ This repository is a prototype, not a finished enterprise product. The documenta
 - PCAP upload page exists, but full parsing and database ingestion are still in progress.
 - Case management data model exists, but the dashboard workflow needs stronger integration with alerts.
 - Report generation module exists, but the dashboard download workflow needs to be completed.
-- Detection rules include stateful ideas, but the rule engine needs more complete time-window logic.
+- Stateful detector policies are code-defined and validated; a reviewed runtime policy-loading/allowlisting boundary is still future work.
 
 ### Planned
 
-- More reliable time-window based detections.
+- Evidence-driven detector tuning using realistic traffic fixtures.
 - Better connection tracking and persistent connection logs.
 - Improved dashboard actions for live collection, case updates, and report export.
-- Broader unit and integration test coverage.
-- Dependency pinning and stronger Docker health checks.
+- Broader end-to-end integration coverage.
+- Authenticated metrics/API export and additional operational signals.
 - Demo screenshots and sample data.
 
 See [ROADMAP.md](ROADMAP.md) for the prioritized professionalization backlog.
 
 ## Validation
 
-Before opening a pull request, run the same focused checks used by the repository documentation:
+Before opening a pull request, run the repository checks that match the area you changed. The Detection Contracts workflow validates bounded detector behavior and integration on Python 3.10 and 3.12. General security checks should also include the repository secret scanner.
 
 ```bash
-python -m ruff check app/config.py app/enrichment.py app/parser.py scripts/check_secrets.py tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
-python -m pytest tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
+python -m pytest tests/test_port_scan_detector.py tests/test_syn_flood_detector.py tests/test_beacon_detector.py tests/test_stateful_detection_integration.py
 python scripts/check_secrets.py .
 ```
 
-A successful validation run should report no Ruff violations, all focused tests passing, and no high-confidence secrets detected by the repository scanner.
+The complete CI suite also covers configuration, database migrations, container hardening, dependency policy, and supply-chain checks.
 
 ## Architecture
 
 ```text
 NetSentinel/
 ├── app/
-│   ├── sniffer.py          # Scapy-based collection wrapper
-│   ├── parser.py           # Metadata extraction
-│   ├── analyzer.py         # Traffic statistics and connection tracking
-│   ├── detection_engine.py # Alert creation from matched rules
-│   ├── rules_engine.py     # YAML rule loading and evaluation
-│   ├── enrichment.py       # IOC lookup and local cache support
-│   ├── database.py         # SQLAlchemy models and database helper methods
-│   ├── report_generator.py # PDF report generation
-│   ├── case_manager.py     # Case creation and update helpers
-│   ├── config.py           # Validated environment configuration
-│   └── utils.py            # Shared utility functions and logging
+│   ├── sniffer.py             # Scapy-based collection wrapper
+│   ├── parser.py              # Metadata extraction
+│   ├── analyzer.py            # Traffic statistics and connection tracking
+│   ├── detection_engine.py    # Typed alert orchestration
+│   ├── port_scan_detector.py  # Bounded unique-port scan state
+│   ├── syn_flood_detector.py  # Bounded per-service SYN-rate state
+│   ├── beacon_detector.py     # Bounded periodic connection state
+│   ├── event_windows.py       # Shared bounded sliding-window primitive
+│   ├── rules_engine.py        # YAML rule loading and evaluation
+│   ├── enrichment.py          # IOC lookup and local cache support
+│   ├── database.py            # SQLAlchemy models and database helper methods
+│   ├── report_generator.py    # PDF report generation
+│   ├── case_manager.py        # Case creation and update helpers
+│   ├── config.py              # Validated environment configuration
+│   └── utils.py               # Shared utility functions and logging
 ├── dashboard/
-│   └── streamlit_app.py    # Streamlit user interface
+│   └── streamlit_app.py       # Streamlit user interface
 ├── rules/
-│   └── default_rules.yaml  # Example detection rules
+│   └── default_rules.yaml     # Example detection rules
 ├── scripts/
-│   └── check_secrets.py    # Deterministic repository secret scanner
+│   └── check_secrets.py       # Deterministic repository secret scanner
 ├── data/
-│   └── sample_packets.csv  # Sample packet data
-├── tests/
-│   ├── test_config.py
-│   ├── test_parser.py
-│   └── test_secret_scanner.py
-├── reports/                # Generated reports
+│   └── sample_packets.csv     # Sample packet data
+├── tests/                     # Unit and integration contracts
+├── reports/                   # Generated reports
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── pyproject.toml
@@ -118,12 +121,11 @@ For development and test tooling:
 
 ```bash
 pip install -r requirements-dev.txt
-python -m ruff check app/config.py app/enrichment.py app/parser.py scripts/check_secrets.py tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
-python -m pytest tests/test_config.py tests/test_parser.py tests/test_secret_scanner.py
+python -m pytest tests/test_port_scan_detector.py tests/test_syn_flood_detector.py tests/test_beacon_detector.py tests/test_stateful_detection_integration.py
 python scripts/check_secrets.py .
 ```
 
-The same focused checks are available through the Makefile:
+The repository also provides focused Makefile targets:
 
 ```bash
 make check
@@ -148,13 +150,7 @@ PY
 
 The checked-in `.env.example` contains only safe defaults and empty secret fields. `DEMO_MODE` is disabled by default and cannot be enabled when `ENVIRONMENT=production`.
 
-Before every merge, CI performs three security-related checks:
-
-1. Lints the validated configuration and security scanner.
-2. Runs focused configuration and scanner tests.
-3. Scans supported repository text files for high-confidence credentials, private keys, and non-empty secrets in environment files.
-
-The scanner is a preventive quality gate, not a replacement for credential rotation or a managed secret store. If a real credential is ever committed, revoke and rotate it immediately even after removing it from Git history.
+CI performs security checks across repository secrets, dependency policy, database readiness, and the runtime container. The scanner is a preventive quality gate, not a replacement for credential rotation or a managed secret store. If a real credential is ever committed, revoke and rotate it immediately even after removing it from Git history.
 
 ## Run the Dashboard
 
@@ -171,16 +167,28 @@ http://localhost:8501
 ## Docker Usage
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 The dashboard should be available on port `8501`.
 
-## Detection Rules
+## Detection Engineering
 
-Rules are stored in YAML format under the `rules/` directory. The current rule engine supports a basic subset of conditions such as protocol, destination port, source IP, TCP flags, DNS query patterns, packet thresholds, unique destination ports, and selected unusual ports.
+Rules are stored in YAML under `rules/`, while detector-specific stateful behavior is implemented in bounded components with validated policies.
 
-Some rule fields in `default_rules.yaml` describe planned stateful behavior. They should be treated as roadmap items until the engine fully supports time-window tracking.
+Current stateful detectors:
+
+- [Unique destination-port scan detection](docs/port-scan-detection.md)
+- [TCP SYN flood detection](docs/syn-flood-detection.md)
+- [Periodic network beacon detection](docs/beacon-detection.md)
+
+Supporting safety boundaries:
+
+- [Bounded event windows](docs/event-windows.md)
+- [Alert suppression](docs/alert-suppression.md)
+- [Detection observability](docs/detection-observability.md)
+
+These components deliberately expose their assumptions, false-positive guidance, memory bounds, and distributed-deployment limitations instead of silently claiming enterprise-scale detection completeness.
 
 ## Example Workflow
 
@@ -194,9 +202,7 @@ Some rule fields in `default_rules.yaml` describe planned stateful behavior. The
 
 ## Development Notes
 
-The project is intentionally small and educational. It is useful for demonstrating knowledge of networking, Python, Streamlit, SQLAlchemy, basic detection engineering, and SOC workflow design.
-
-Before presenting the project as a completed platform, the remaining partial features should be completed and tested.
+The project is intentionally educational and incremental. It demonstrates networking, Python, Streamlit, SQLAlchemy, bounded stateful detection, basic detection engineering, and SOC workflow design while keeping incomplete product areas explicit.
 
 ## Contributing
 

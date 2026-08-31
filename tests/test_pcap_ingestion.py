@@ -16,6 +16,17 @@ class CapturingDatabase:
         self.packets.append(packet_data)
 
 
+class BatchDatabase:
+    def __init__(self):
+        self.batches = []
+
+    def add_packets(self, packet_batch):
+        self.batches.append(list(packet_batch))
+
+    def add_packet(self, _packet_data):
+        raise AssertionError("batch-capable databases should not use per-packet writes")
+
+
 class FailingDatabase:
     def add_packet(self, _packet_data):
         raise ValueError("database write failed")
@@ -149,6 +160,32 @@ def test_packet_budget_counts_every_packet_seen(monkeypatch, tmp_path):
     assert result.stored_packets == 1
     assert result.parse_errors == 1
     assert result.truncated is True
+
+
+def test_batch_capable_database_receives_bounded_flushes(monkeypatch, tmp_path):
+    capture = tmp_path / "capture.pcap"
+    capture.write_bytes(b"pcap")
+    FakeReader.packets = [packet(index) for index in range(1, 6)]
+    monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
+
+    def parser(_packet, timestamp):
+        return {"timestamp": timestamp}
+
+    database = BatchDatabase()
+    result = ingest_pcap_file(
+        capture,
+        database,
+        policy=PcapIngestionPolicy(
+            max_upload_bytes=100,
+            max_packets=10,
+            max_parse_errors=2,
+            batch_size=2,
+        ),
+        parser=parser,
+    )
+
+    assert [len(batch) for batch in database.batches] == [2, 2, 1]
+    assert result.stored_packets == 5
 
 
 def test_database_write_errors_are_not_misclassified_as_parse_errors(monkeypatch, tmp_path):

@@ -27,6 +27,7 @@ class PcapIngestionPolicy:
 
 @dataclass(frozen=True)
 class PcapIngestionResult:
+    processed_packets: int
     stored_packets: int
     parse_errors: int
     truncated: bool
@@ -50,16 +51,18 @@ def ingest_pcap_file(
             f"capture exceeds the {policy.max_upload_bytes}-byte upload limit"
         )
 
+    processed_packets = 0
     stored_packets = 0
     parse_errors = 0
     truncated = False
 
     with PcapReader(str(capture_path)) as reader:
         for packet in reader:
-            if stored_packets >= policy.max_packets:
+            if processed_packets >= policy.max_packets:
                 truncated = True
                 break
 
+            processed_packets += 1
             packet_time = getattr(packet, "time", None)
             timestamp = (
                 datetime.fromtimestamp(float(packet_time))
@@ -81,6 +84,7 @@ def ingest_pcap_file(
             stored_packets += 1
 
     return PcapIngestionResult(
+        processed_packets=processed_packets,
         stored_packets=stored_packets,
         parse_errors=parse_errors,
         truncated=truncated,

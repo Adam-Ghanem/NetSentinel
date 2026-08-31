@@ -209,6 +209,15 @@ class DatabaseManager:
             session.add(packet)
         return packet
 
+    def add_packets(self, packet_batch):
+        if not packet_batch:
+            return []
+
+        packets = [PacketModel(**packet_data) for packet_data in packet_batch]
+        with self.transaction() as session:
+            session.add_all(packets)
+        return packets
+
     def get_packets(self, limit=100):
         limit = self._validate_limit(limit)
         with self.Session() as session:

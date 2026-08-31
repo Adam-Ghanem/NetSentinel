@@ -4,8 +4,10 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "app/database.py"
       - "app/pcap_ingestion.py"
       - "scripts/ingest_pcap.py"
+      - "tests/test_database.py"
       - "tests/test_pcap_ingestion.py"
       - "tests/test_pcap_ingestion_security.py"
       - "tests/test_pcap_cli.py"
@@ -13,8 +15,10 @@ on:
   push:
     branches: [main]
     paths:
+      - "app/database.py"
       - "app/pcap_ingestion.py"
       - "scripts/ingest_pcap.py"
+      - "tests/test_database.py"
       - "tests/test_pcap_ingestion.py"
       - "tests/test_pcap_ingestion_security.py"
       - "tests/test_pcap_cli.py"
@@ -60,8 +64,10 @@ jobs:
       - name: Lint PCAP ingestion contracts
         run: >-
           python -m ruff check
+          app/database.py
           app/pcap_ingestion.py
           scripts/ingest_pcap.py
+          tests/test_database.py
           tests/test_pcap_ingestion.py
           tests/test_pcap_ingestion_security.py
           tests/test_pcap_cli.py
@@ -69,6 +75,7 @@ jobs:
       - name: Run PCAP ingestion contracts
         run: >-
           python -m pytest
+          tests/test_database.py
           tests/test_pcap_ingestion.py
           tests/test_pcap_ingestion_security.py
           tests/test_pcap_cli.py

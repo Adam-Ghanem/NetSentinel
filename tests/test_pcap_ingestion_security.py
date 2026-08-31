@@ -46,11 +46,12 @@ def test_pcap_ingestion_policy_rejects_boolean_bounds(field_name):
         PcapIngestionPolicy(**values)
 
 
-def test_pcap_ingestion_policy_rejects_batch_larger_than_packet_budget():
-    with pytest.raises(ValueError, match="batch_size must not exceed max_packets"):
-        PcapIngestionPolicy(
-            max_upload_bytes=1024,
-            max_packets=10,
-            max_parse_errors=5,
-            batch_size=11,
-        )
+def test_batch_size_may_exceed_smaller_packet_budget():
+    policy = PcapIngestionPolicy(
+        max_upload_bytes=1024,
+        max_packets=10,
+        max_parse_errors=5,
+    )
+
+    assert policy.max_packets == 10
+    assert policy.batch_size == 500

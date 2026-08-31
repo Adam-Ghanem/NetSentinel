@@ -16,6 +16,8 @@ class DetectionMetricsSnapshot:
     generated_at: datetime
     suppression: SuppressionMetrics
     port_scan_state: WindowSnapshot | None = None
+    syn_flood_state: WindowSnapshot | None = None
+    beacon_state: WindowSnapshot | None = None
 
     @property
     def total_decisions(self) -> int:
@@ -36,6 +38,12 @@ class DetectionMetricsSnapshot:
             "port_scan_state": (
                 asdict(self.port_scan_state) if self.port_scan_state is not None else None
             ),
+            "syn_flood_state": (
+                asdict(self.syn_flood_state) if self.syn_flood_state is not None else None
+            ),
+            "beacon_state": (
+                asdict(self.beacon_state) if self.beacon_state is not None else None
+            ),
             "derived": {
                 "total_decisions": self.total_decisions,
                 "suppression_ratio": self.suppression_ratio,
@@ -51,10 +59,14 @@ class DetectionObservability:
         alert_suppressor: AlertSuppressor,
         *,
         port_scan_snapshot: Callable[[], WindowSnapshot] | None = None,
+        syn_flood_snapshot: Callable[[], WindowSnapshot] | None = None,
+        beacon_snapshot: Callable[[], WindowSnapshot] | None = None,
         now: Callable[[], datetime] | None = None,
     ) -> None:
         self._alert_suppressor = alert_suppressor
         self._port_scan_snapshot = port_scan_snapshot
+        self._syn_flood_snapshot = syn_flood_snapshot
+        self._beacon_snapshot = beacon_snapshot
         self._now = now or (lambda: datetime.now(timezone.utc))
 
     def snapshot(self) -> DetectionMetricsSnapshot:
@@ -69,5 +81,11 @@ class DetectionObservability:
             suppression=self._alert_suppressor.metrics(),
             port_scan_state=(
                 self._port_scan_snapshot() if self._port_scan_snapshot is not None else None
+            ),
+            syn_flood_state=(
+                self._syn_flood_snapshot() if self._syn_flood_snapshot is not None else None
+            ),
+            beacon_state=(
+                self._beacon_snapshot() if self._beacon_snapshot is not None else None
             ),
         )

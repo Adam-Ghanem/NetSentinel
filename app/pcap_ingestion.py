@@ -45,6 +45,9 @@ def ingest_pcap_file(
     parser: Callable[[Any, datetime], dict[str, Any]] = parse_packet,
 ) -> PcapIngestionResult:
     capture_path = Path(path)
+    if not capture_path.is_file():
+        raise PcapIngestionError("capture path must reference a regular file")
+
     size = capture_path.stat().st_size
     if size > policy.max_upload_bytes:
         raise PcapIngestionError(

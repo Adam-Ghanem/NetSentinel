@@ -17,14 +17,22 @@ class PcapIngestionPolicy:
     max_upload_bytes: int = 64 * 1024 * 1024
     max_packets: int = 100_000
     max_parse_errors: int = 100
+    batch_size: int = 500
 
     def __post_init__(self) -> None:
-        for field_name in ("max_upload_bytes", "max_packets", "max_parse_errors"):
+        for field_name in (
+            "max_upload_bytes",
+            "max_packets",
+            "max_parse_errors",
+            "batch_size",
+        ):
             value = getattr(self, field_name)
             if isinstance(value, bool) or not isinstance(value, int):
                 raise TypeError(f"{field_name} must be an integer")
             if value <= 0:
                 raise ValueError(f"{field_name} must be greater than zero")
+        if self.batch_size > self.max_packets:
+            raise ValueError("batch_size must not exceed max_packets")
 
 
 @dataclass(frozen=True)
@@ -83,6 +91,20 @@ def ingest_uploaded_capture(
                 pass
 
 
+def _persist_packet_batch(database: Any, packet_batch: list[dict[str, Any]]) -> int:
+    if not packet_batch:
+        return 0
+
+    add_packets = getattr(database, "add_packets", None)
+    if callable(add_packets):
+        add_packets(packet_batch)
+        return len(packet_batch)
+
+    for packet_data in packet_batch:
+        database.add_packet(packet_data)
+    return len(packet_batch)
+
+
 def ingest_pcap_file(
     path: str | Path,
     database: Any,
@@ -104,6 +126,7 @@ def ingest_pcap_file(
     stored_packets = 0
     parse_errors = 0
     truncated = False
+    packet_batch: list[dict[str, Any]] = []
 
     with PcapReader(str(capture_path)) as reader:
         for packet in reader:
@@ -129,8 +152,12 @@ def ingest_pcap_file(
                     )
                 continue
 
-            database.add_packet(packet_data)
-            stored_packets += 1
+            packet_batch.append(packet_data)
+            if len(packet_batch) >= policy.batch_size:
+                stored_packets += _persist_packet_batch(database, packet_batch)
+                packet_batch = []
+
+    stored_packets += _persist_packet_batch(database, packet_batch)
 
     return PcapIngestionResult(
         processed_packets=processed_packets,

@@ -20,6 +20,7 @@ on:
       - "rules/default_rules.yaml"
       - "tests/test_alert_suppression.py"
       - "tests/test_beacon_detector.py"
+      - "tests/test_beacon_policy.py"
       - "tests/test_detection_contracts.py"
       - "tests/test_detection_engine_contracts.py"
       - "tests/test_detection_observability.py"
@@ -31,10 +32,13 @@ on:
       - "tests/test_parser.py"
       - "tests/test_stateful_detection_integration.py"
       - "tests/test_syn_flood_detector.py"
+      - "tests/test_syn_flood_policy.py"
       - "docs/alert-suppression.md"
+      - "docs/beacon-detection.md"
       - "docs/detection-observability.md"
       - "docs/event-windows.md"
       - "docs/port-scan-detection.md"
+      - "docs/syn-flood-detection.md"
       - "requirements.txt"
       - "requirements-dev.txt"
       - ".github/workflows/detection-contracts.yml"
@@ -57,6 +61,7 @@ on:
       - "rules/default_rules.yaml"
       - "tests/test_alert_suppression.py"
       - "tests/test_beacon_detector.py"
+      - "tests/test_beacon_policy.py"
       - "tests/test_detection_contracts.py"
       - "tests/test_detection_engine_contracts.py"
       - "tests/test_detection_observability.py"
@@ -68,10 +73,13 @@ on:
       - "tests/test_parser.py"
       - "tests/test_stateful_detection_integration.py"
       - "tests/test_syn_flood_detector.py"
+      - "tests/test_syn_flood_policy.py"
       - "docs/alert-suppression.md"
+      - "docs/beacon-detection.md"
       - "docs/detection-observability.md"
       - "docs/event-windows.md"
       - "docs/port-scan-detection.md"
+      - "docs/syn-flood-detection.md"
       - "requirements.txt"
       - "requirements-dev.txt"
       - ".github/workflows/detection-contracts.yml"
@@ -131,6 +139,7 @@ jobs:
           app/detection_engine.py
           tests/test_alert_suppression.py
           tests/test_beacon_detector.py
+          tests/test_beacon_policy.py
           tests/test_detection_contracts.py
           tests/test_detection_engine_contracts.py
           tests/test_detection_observability.py
@@ -142,12 +151,14 @@ jobs:
           tests/test_parser.py
           tests/test_stateful_detection_integration.py
           tests/test_syn_flood_detector.py
+          tests/test_syn_flood_policy.py
 
       - name: Run detection contract tests
         run: >-
           python -m pytest
           tests/test_alert_suppression.py
           tests/test_beacon_detector.py
+          tests/test_beacon_policy.py
           tests/test_detection_contracts.py
           tests/test_detection_engine_contracts.py
           tests/test_detection_observability.py
@@ -159,3 +170,4 @@ jobs:
           tests/test_parser.py
           tests/test_stateful_detection_integration.py
           tests/test_syn_flood_detector.py
+          tests/test_syn_flood_policy.py

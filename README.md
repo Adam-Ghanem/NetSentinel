@@ -16,6 +16,7 @@ NetSentinel turns network metadata into analyst-friendly evidence through a smal
 - detects periodic TCP beaconing behavior;
 - suppresses repeated alerts through bounded cooldown state;
 - persists validated alerts and investigation data through SQLAlchemy;
+- streams bounded PCAP/PCAPNG ingestion into atomic packet batches;
 - exposes sanitized process-local detection metrics;
 - supports IOC enrichment with optional external provider keys;
 - provides a Streamlit SOC dashboard for packets, alerts, cases, IOC lookup, and reports.
@@ -38,6 +39,7 @@ Detailed design and operational guidance:
 - [Bounded event windows](docs/event-windows.md)
 - [Alert suppression](docs/alert-suppression.md)
 - [Detection observability](docs/detection-observability.md)
+- [Bounded PCAP ingestion](docs/pcap-ingestion.md)
 
 The detectors are evidence signals, not automatic proof of compromise. Scanner traffic, monitoring systems, automation, retries, and legitimate periodic software can produce similar patterns, so alerts should be validated with asset and operational context.
 
@@ -74,6 +76,7 @@ Core modules:
 app/
 ├── sniffer.py
 ├── parser.py
+├── pcap_ingestion.py
 ├── analyzer.py
 ├── detection_engine.py
 ├── rules_engine.py
@@ -101,6 +104,9 @@ app/
 - bounded stateful scan, SYN-flood, and beacon detection;
 - duplicate-alert suppression with cooldowns;
 - sanitized detector-pressure and suppression metrics;
+- bounded streaming PCAP/PCAPNG ingestion with upload, packet, parse-error, and batch limits;
+- atomic packet-batch persistence with rollback on invalid records;
+- a safe PCAP ingestion CLI with aggregate result reporting;
 - SQLite-backed packet, alert, case, IOC-cache, and user models;
 - Alembic migration and schema-readiness tooling;
 - local authentication with bcrypt password hashing;
@@ -114,7 +120,7 @@ app/
 
 ### Still in Progress
 
-- complete PCAP ingestion into the database workflow;
+- migrate the legacy Streamlit PCAP upload helper onto the bounded ingestion service;
 - stronger live-collection controls and dashboard integration;
 - alert-to-case investigation workflow improvements;
 - dashboard report-download integration;
@@ -170,6 +176,16 @@ streamlit run dashboard/streamlit_app.py --server.port=8501 --server.address=0.0
 
 Then open `http://localhost:8501`.
 
+### Bounded PCAP ingestion
+
+For the reviewed streaming ingestion path, use the CLI:
+
+```bash
+python scripts/ingest_pcap.py capture.pcap
+```
+
+The default policy caps uploads at 64 MiB, processes at most 100,000 packets, tolerates at most 100 parser failures, and persists metadata in bounded batches. See [docs/pcap-ingestion.md](docs/pcap-ingestion.md) before raising those limits.
+
 ## Docker
 
 ```bash
@@ -206,19 +222,30 @@ python -m pytest \
   tests/test_stateful_detection_integration.py
 ```
 
+Focused PCAP-ingestion verification:
+
+```bash
+python -m pytest \
+  tests/test_database.py \
+  tests/test_pcap_ingestion.py \
+  tests/test_pcap_ingestion_security.py \
+  tests/test_pcap_cli.py
+```
+
 Secret hygiene:
 
 ```bash
 python scripts/check_secrets.py .
 ```
 
-CI additionally covers configuration safety, database transactions, migrations, schema compatibility, container configuration, dependency policy, supply-chain checks, and the full stateful detection contract suite.
+CI additionally covers configuration safety, database transactions, migrations, schema compatibility, container configuration, dependency policy, supply-chain checks, stateful detection contracts, and bounded PCAP ingestion on Python 3.10 and 3.12.
 
 ## Security Model
 
 NetSentinel follows a few simple defensive engineering rules:
 
 - packet-derived data is validated before alert persistence;
+- uploaded capture processing is bounded by explicit byte, packet, parse-error, and batch limits;
 - detector state is bounded rather than allowed to grow indefinitely;
 - observability avoids per-host high-cardinality labels and packet payloads;
 - credentials are not stored in the repository;

@@ -8,6 +8,7 @@ on:
       - "app/pcap_ingestion.py"
       - "scripts/ingest_pcap.py"
       - "tests/test_database.py"
+      - "tests/test_pcap_format_validation.py"
       - "tests/test_pcap_ingestion.py"
       - "tests/test_pcap_ingestion_security.py"
       - "tests/test_pcap_cli.py"
@@ -19,6 +20,7 @@ on:
       - "app/pcap_ingestion.py"
       - "scripts/ingest_pcap.py"
       - "tests/test_database.py"
+      - "tests/test_pcap_format_validation.py"
       - "tests/test_pcap_ingestion.py"
       - "tests/test_pcap_ingestion_security.py"
       - "tests/test_pcap_cli.py"
@@ -68,6 +70,7 @@ jobs:
           app/pcap_ingestion.py
           scripts/ingest_pcap.py
           tests/test_database.py
+          tests/test_pcap_format_validation.py
           tests/test_pcap_ingestion.py
           tests/test_pcap_ingestion_security.py
           tests/test_pcap_cli.py
@@ -76,6 +79,7 @@ jobs:
         run: >-
           python -m pytest
           tests/test_database.py
+          tests/test_pcap_format_validation.py
           tests/test_pcap_ingestion.py
           tests/test_pcap_ingestion_security.py
           tests/test_pcap_cli.py

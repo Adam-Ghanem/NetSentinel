@@ -16,6 +16,11 @@ class CapturingDatabase:
         self.packets.append(packet_data)
 
 
+class FailingDatabase:
+    def add_packet(self, _packet_data):
+        raise ValueError("database write failed")
+
+
 class FakeReader:
     packets = []
 
@@ -144,6 +149,19 @@ def test_packet_budget_counts_every_packet_seen(monkeypatch, tmp_path):
     assert result.stored_packets == 1
     assert result.parse_errors == 1
     assert result.truncated is True
+
+
+def test_database_write_errors_are_not_misclassified_as_parse_errors(monkeypatch, tmp_path):
+    capture = tmp_path / "capture.pcap"
+    capture.write_bytes(b"pcap")
+    FakeReader.packets = [packet(1)]
+    monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
+
+    def parser(_packet, timestamp):
+        return {"timestamp": timestamp}
+
+    with pytest.raises(ValueError, match="database write failed"):
+        ingest_pcap_file(capture, FailingDatabase(), parser=parser)
 
 
 def test_parse_error_budget_fails_closed(monkeypatch, tmp_path):

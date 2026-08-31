@@ -32,8 +32,6 @@ class PcapIngestionPolicy:
                 raise TypeError(f"{field_name} must be an integer")
             if value <= 0:
                 raise ValueError(f"{field_name} must be greater than zero")
-        if self.batch_size > self.max_packets:
-            raise ValueError("batch_size must not exceed max_packets")
 
 
 DEFAULT_PCAP_INGESTION_POLICY = PcapIngestionPolicy()

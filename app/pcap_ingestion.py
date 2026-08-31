@@ -12,6 +12,14 @@ from scapy.all import PcapReader
 
 from app.parser import parse_packet
 
+_CAPTURE_MAGIC = {
+    bytes.fromhex("a1b2c3d4"),
+    bytes.fromhex("d4c3b2a1"),
+    bytes.fromhex("a1b23c4d"),
+    bytes.fromhex("4d3cb2a1"),
+    bytes.fromhex("0a0d0d0a"),
+}
+
 
 @dataclass(frozen=True)
 class PcapIngestionPolicy:
@@ -93,6 +101,13 @@ def ingest_uploaded_capture(
                 pass
 
 
+def _validate_capture_format(capture_path: Path) -> None:
+    with capture_path.open("rb") as capture_file:
+        magic = capture_file.read(4)
+    if magic not in _CAPTURE_MAGIC:
+        raise PcapIngestionError("unsupported or truncated capture format")
+
+
 def _persist_packet_batch(database: Any, packet_batch: list[dict[str, Any]]) -> int:
     if not packet_batch:
         return 0
@@ -123,6 +138,7 @@ def ingest_pcap_file(
         raise PcapIngestionError(
             f"capture exceeds the {policy.max_upload_bytes}-byte upload limit"
         )
+    _validate_capture_format(capture_path)
 
     processed_packets = 0
     stored_packets = 0

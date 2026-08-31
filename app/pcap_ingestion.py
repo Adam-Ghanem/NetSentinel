@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, BinaryIO, Callable
 
 from scapy.all import PcapReader
 
@@ -35,6 +37,50 @@ class PcapIngestionResult:
 
 class PcapIngestionError(ValueError):
     """Raised when a capture violates a reviewed ingestion boundary."""
+
+
+def ingest_uploaded_capture(
+    upload: BinaryIO,
+    database: Any,
+    *,
+    policy: PcapIngestionPolicy = PcapIngestionPolicy(),
+    parser: Callable[[Any, datetime], dict[str, Any]] = parse_packet,
+    chunk_size: int = 1024 * 1024,
+) -> PcapIngestionResult:
+    if isinstance(chunk_size, bool) or not isinstance(chunk_size, int):
+        raise TypeError("chunk_size must be an integer")
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be greater than zero")
+
+    temp_path: str | None = None
+    bytes_written = 0
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pcap") as temp_file:
+            temp_path = temp_file.name
+            while True:
+                chunk = upload.read(chunk_size)
+                if not chunk:
+                    break
+                bytes_written += len(chunk)
+                if bytes_written > policy.max_upload_bytes:
+                    raise PcapIngestionError(
+                        f"capture exceeds the {policy.max_upload_bytes}-byte upload limit"
+                    )
+                temp_file.write(chunk)
+
+        return ingest_pcap_file(
+            temp_path,
+            database,
+            policy=policy,
+            parser=parser,
+        )
+    finally:
+        if temp_path is not None:
+            try:
+                os.remove(temp_path)
+            except FileNotFoundError:
+                pass
 
 
 def ingest_pcap_file(

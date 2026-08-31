@@ -97,7 +97,7 @@ class BeaconDetector:
         recent = observations[-self.min_connections :]
         intervals = tuple(
             current - previous
-            for previous, current in zip(recent, recent[1:], strict=True)
+            for previous, current in zip(recent, recent[1:], strict=False)
         )
         if not intervals or min(intervals) < self.policy.min_interval_seconds:
             return None

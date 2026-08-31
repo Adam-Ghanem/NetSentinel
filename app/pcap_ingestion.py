@@ -121,7 +121,6 @@ def ingest_pcap_file(
 
             try:
                 packet_data = parser(packet, timestamp)
-                database.add_packet(packet_data)
             except (TypeError, ValueError):
                 parse_errors += 1
                 if parse_errors > policy.max_parse_errors:
@@ -130,6 +129,7 @@ def ingest_pcap_file(
                     )
                 continue
 
+            database.add_packet(packet_data)
             stored_packets += 1
 
     return PcapIngestionResult(

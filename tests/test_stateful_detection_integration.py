@@ -131,3 +131,25 @@ def test_engine_does_not_alert_before_stateful_thresholds(monkeypatch):
         clock.advance(30)
 
     assert database.alerts == []
+
+
+def test_engine_metrics_include_all_stateful_detector_pressure(monkeypatch):
+    disable_threat_intel(monkeypatch)
+    clock = FakeClock()
+    engine = DetectionEngine(
+        EmptyRulesEngine(),
+        CapturingDatabase(),
+        syn_flood_detector=SynFloodDetector(threshold=10, clock=clock),
+        beacon_detector=BeaconDetector(min_connections=5, clock=clock),
+        now=lambda: TIMESTAMP,
+    )
+
+    engine.run_detections(syn_packet(), {}, {})
+    snapshot = engine.metrics_snapshot()
+
+    assert snapshot.port_scan_state is not None
+    assert snapshot.port_scan_state.tracked_events == 1
+    assert snapshot.syn_flood_state is not None
+    assert snapshot.syn_flood_state.tracked_events == 1
+    assert snapshot.beacon_state is not None
+    assert snapshot.beacon_state.tracked_events == 1

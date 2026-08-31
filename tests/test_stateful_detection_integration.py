@@ -109,6 +109,35 @@ def test_engine_persists_periodic_beacon_alert(monkeypatch):
     assert "30" in alert["description"]
 
 
+def test_beacon_alerts_are_suppressed_after_first_match(monkeypatch):
+    disable_threat_intel(monkeypatch)
+    clock = FakeClock()
+    database = CapturingDatabase()
+    engine = DetectionEngine(
+        EmptyRulesEngine(),
+        database,
+        syn_flood_detector=SynFloodDetector(threshold=100),
+        beacon_detector=BeaconDetector(
+            min_connections=4,
+            min_interval_seconds=10,
+            max_interval_variance=0.01,
+            clock=clock,
+        ),
+        now=lambda: TIMESTAMP,
+    )
+
+    for index in range(6):
+        engine.run_detections(syn_packet(), {}, {})
+        if index < 5:
+            clock.advance(30)
+
+    alerts = [
+        alert for alert in database.alerts if alert["alert_type"] == "Periodic Network Beacon"
+    ]
+    assert len(alerts) == 1
+    assert engine.metrics_snapshot().suppression.suppressed == 2
+
+
 def test_engine_does_not_alert_before_stateful_thresholds(monkeypatch):
     disable_threat_intel(monkeypatch)
     clock = FakeClock()

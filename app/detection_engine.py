@@ -6,10 +6,12 @@ from datetime import datetime, timezone
 from typing import Any, Protocol
 
 from app.alert_suppression import AlertSuppressor
+from app.beacon_detector import BeaconDetector, BeaconMatch
 from app.contracts import AlertRecord, DetectionRule, PacketMetadata, Severity
 from app.detection_observability import DetectionMetricsSnapshot, DetectionObservability
 from app.intel import ThreatIntel
 from app.port_scan_detector import PortScanMatch, UniquePortScanDetector
+from app.syn_flood_detector import SynFloodDetector, SynFloodMatch
 from app.utils import get_logger
 
 logger = get_logger(__name__)
@@ -38,12 +40,16 @@ class DetectionEngine:
         *,
         alert_suppressor: AlertSuppressor | None = None,
         port_scan_detector: UniquePortScanDetector | None = None,
+        syn_flood_detector: SynFloodDetector | None = None,
+        beacon_detector: BeaconDetector | None = None,
         now: Callable[[], datetime] | None = None,
     ) -> None:
         self.rules_engine = rules_engine
         self.db = database_manager
         self.alert_suppressor = alert_suppressor or AlertSuppressor()
         self.port_scan_detector = port_scan_detector or UniquePortScanDetector()
+        self.syn_flood_detector = syn_flood_detector or SynFloodDetector()
+        self.beacon_detector = beacon_detector or BeaconDetector()
         self._now = now or (lambda: datetime.now(timezone.utc))
         self.observability = DetectionObservability(
             self.alert_suppressor,
@@ -73,6 +79,8 @@ class DetectionEngine:
         self._check_threat_intel(packet)
         self._check_ja3_malware(packet)
         self._check_unique_port_scan(packet)
+        self._check_syn_flood(packet)
+        self._check_beacon(packet)
 
         for rule in self.rules_engine.evaluate_rules(packet, connections, traffic_stats):
             self._create_alert(
@@ -110,6 +118,59 @@ class DetectionEngine:
                 "destination for reconnaissance activity."
             ),
             suppression_seconds=60.0,
+        )
+
+    def _check_syn_flood(self, packet: PacketMetadata) -> None:
+        match = self.syn_flood_detector.observe(packet)
+        if match is None:
+            return
+
+        self._create_syn_flood_alert(match)
+
+    def _create_syn_flood_alert(self, match: SynFloodMatch) -> None:
+        self._create_alert(
+            alert_type="TCP SYN Flood",
+            severity=Severity.HIGH,
+            description=(
+                f"Observed {match.syn_packets} TCP SYN packets from {match.source_ip} "
+                f"to {match.destination_ip}:{match.destination_port} within "
+                f"{match.window_seconds:g} seconds."
+            ),
+            source_ip=match.source_ip,
+            dest_ip=match.destination_ip,
+            mitre_attack="T1498",
+            recommended_action=(
+                "Validate whether the burst is expected, inspect upstream connection "
+                "rates, and apply rate limiting or filtering if availability is at risk."
+            ),
+            suppression_seconds=60.0,
+        )
+
+    def _check_beacon(self, packet: PacketMetadata) -> None:
+        match = self.beacon_detector.observe(packet)
+        if match is None:
+            return
+
+        self._create_beacon_alert(match)
+
+    def _create_beacon_alert(self, match: BeaconMatch) -> None:
+        self._create_alert(
+            alert_type="Periodic Network Beacon",
+            severity=Severity.HIGH,
+            description=(
+                f"Observed {match.connections} periodic TCP SYN connections from "
+                f"{match.source_ip} to {match.destination_ip}:{match.destination_port} "
+                f"with a mean interval of {match.mean_interval_seconds:g} seconds "
+                f"within a {match.window_seconds:g}-second window."
+            ),
+            source_ip=match.source_ip,
+            dest_ip=match.destination_ip,
+            mitre_attack="T1071",
+            recommended_action=(
+                "Confirm whether the destination and cadence belong to approved software; "
+                "otherwise inspect the endpoint and destination for command-and-control activity."
+            ),
+            suppression_seconds=300.0,
         )
 
     def _check_threat_intel(self, packet: PacketMetadata) -> None:

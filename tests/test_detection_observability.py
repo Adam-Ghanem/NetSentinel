@@ -37,6 +37,8 @@ def test_snapshot_exposes_sanitized_suppression_metrics():
             "tracked_entries": 1,
         },
         "port_scan_state": None,
+        "syn_flood_state": None,
+        "beacon_state": None,
         "derived": {
             "total_decisions": 2,
             "suppression_ratio": 0.5,
@@ -45,17 +47,15 @@ def test_snapshot_exposes_sanitized_suppression_metrics():
     assert "sensitive-alert-key" not in str(payload)
 
 
-def test_snapshot_exposes_sanitized_port_scan_state_pressure():
-    snapshot = WindowSnapshot(
-        tracked_keys=4,
-        tracked_events=17,
-        expired_events=9,
-        evicted_keys=2,
-        dropped_events=3,
-    )
+def test_snapshot_exposes_sanitized_stateful_detector_pressure():
+    port_scan = WindowSnapshot(4, 17, 9, 2, 3)
+    syn_flood = WindowSnapshot(5, 22, 6, 1, 4)
+    beacon = WindowSnapshot(7, 31, 8, 3, 2)
     observability = DetectionObservability(
         AlertSuppressor(),
-        port_scan_snapshot=lambda: snapshot,
+        port_scan_snapshot=lambda: port_scan,
+        syn_flood_snapshot=lambda: syn_flood,
+        beacon_snapshot=lambda: beacon,
     )
 
     payload = observability.snapshot().to_dict()
@@ -66,6 +66,22 @@ def test_snapshot_exposes_sanitized_port_scan_state_pressure():
         "expired_events": 9,
         "evicted_keys": 2,
         "dropped_events": 3,
+        "cardinality_limited_events": 0,
+    }
+    assert payload["syn_flood_state"] == {
+        "tracked_keys": 5,
+        "tracked_events": 22,
+        "expired_events": 6,
+        "evicted_keys": 1,
+        "dropped_events": 4,
+        "cardinality_limited_events": 0,
+    }
+    assert payload["beacon_state"] == {
+        "tracked_keys": 7,
+        "tracked_events": 31,
+        "expired_events": 8,
+        "evicted_keys": 3,
+        "dropped_events": 2,
         "cardinality_limited_events": 0,
     }
     assert "source_ip" not in str(payload)
@@ -107,6 +123,8 @@ def test_detection_engine_exposes_same_read_only_snapshot():
     engine.observability = DetectionObservability(
         suppressor,
         port_scan_snapshot=lambda: WindowSnapshot(1, 2, 3, 4, 5),
+        syn_flood_snapshot=lambda: WindowSnapshot(6, 7, 8, 9, 10),
+        beacon_snapshot=lambda: WindowSnapshot(11, 12, 13, 14, 15),
     )
 
     suppressor.evaluate("alert-a")
@@ -114,4 +132,6 @@ def test_detection_engine_exposes_same_read_only_snapshot():
 
     assert snapshot.suppression.emitted == 1
     assert snapshot.port_scan_state == WindowSnapshot(1, 2, 3, 4, 5)
+    assert snapshot.syn_flood_state == WindowSnapshot(6, 7, 8, 9, 10)
+    assert snapshot.beacon_state == WindowSnapshot(11, 12, 13, 14, 15)
     assert snapshot.port_scan_state.cardinality_limited_events == 0

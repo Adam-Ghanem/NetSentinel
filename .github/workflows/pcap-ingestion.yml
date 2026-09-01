@@ -6,8 +6,10 @@ on:
     paths:
       - "app/database.py"
       - "app/pcap_ingestion.py"
+      - "dashboard/streamlit_app.py"
       - "scripts/ingest_pcap.py"
       - "tests/test_database.py"
+      - "tests/test_dashboard_pcap_boundary.py"
       - "tests/test_pcap_format_validation.py"
       - "tests/test_pcap_ingestion.py"
       - "tests/test_pcap_ingestion_security.py"
@@ -18,8 +20,10 @@ on:
     paths:
       - "app/database.py"
       - "app/pcap_ingestion.py"
+      - "dashboard/streamlit_app.py"
       - "scripts/ingest_pcap.py"
       - "tests/test_database.py"
+      - "tests/test_dashboard_pcap_boundary.py"
       - "tests/test_pcap_format_validation.py"
       - "tests/test_pcap_ingestion.py"
       - "tests/test_pcap_ingestion_security.py"
@@ -68,8 +72,10 @@ jobs:
           python -m ruff check
           app/database.py
           app/pcap_ingestion.py
+          dashboard/streamlit_app.py
           scripts/ingest_pcap.py
           tests/test_database.py
+          tests/test_dashboard_pcap_boundary.py
           tests/test_pcap_format_validation.py
           tests/test_pcap_ingestion.py
           tests/test_pcap_ingestion_security.py
@@ -79,6 +85,7 @@ jobs:
         run: >-
           python -m pytest
           tests/test_database.py
+          tests/test_dashboard_pcap_boundary.py
           tests/test_pcap_format_validation.py
           tests/test_pcap_ingestion.py
           tests/test_pcap_ingestion_security.py

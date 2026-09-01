@@ -16,7 +16,7 @@ Uploaded file-like objects can be staged with `ingest_uploaded_capture()`. The u
 
 ## Failure semantics
 
-Packet parser `TypeError` and `ValueError` failures consume the parse-error budget and skip the malformed packet. Once the budget is exceeded, ingestion fails closed with `PcapIngestionError`.
+Packet parser `TypeError` and `ValueError` failures consume the parse-error budget and skip the malformed packet. Once the budget is exceeded, ingestion fails closed with `PcapIngestionError`. The original parser exception is retained as the chained cause so diagnostics preserve the failure context without weakening the reviewed boundary.
 
 Database persistence failures are not reclassified as parse failures. They propagate to the caller so storage outages, schema faults, or validation errors are visible and cannot silently turn into packet skips.
 
@@ -30,6 +30,14 @@ Successful ingestion returns `PcapIngestionResult` with:
 - `truncated`: whether the packet budget stopped processing before EOF.
 
 These values are aggregate operational evidence and do not include packet payloads, source addresses, destination addresses, or other high-cardinality labels.
+
+## Dashboard integration
+
+The Streamlit Analysis workspace routes `.pcap` and `.pcapng` uploads through `ingest_uploaded_capture()` rather than materializing the full upload or calling Scapy's whole-capture `rdpcap` helper.
+
+After a successful upload, the dashboard reports processed packets, stored records, and parse errors. If the reviewed packet budget truncates a capture, the analyst receives an explicit warning that remaining packets were not processed. Policy rejections are shown separately from persistence/runtime failures so resource-boundary failures are distinguishable from storage problems.
+
+The dashboard uses the same default `PcapIngestionPolicy` as the service and CLI. Changing those defaults is therefore a reviewed ingestion-policy change, not a UI-only tweak.
 
 ## CLI usage
 
@@ -51,10 +59,6 @@ python scripts/ingest_pcap.py capture.pcapng \
 
 Treat increased limits as resource-policy changes. Review memory, disk, database throughput, capture provenance, and operational need before raising them.
 
-## Current integration status
-
-The bounded service and CLI are independent of the legacy Streamlit upload helper so they can be tested and reviewed without coupling ingestion policy to UI code. The dashboard should be migrated to `ingest_uploaded_capture()` in a separate UI-focused change after this contract is green; until then, operators who need the reviewed bounded path should use the CLI/service directly.
-
 ## Verification
 
-The dedicated `PCAP Ingestion Contracts` GitHub Actions workflow runs Ruff and focused pytest coverage on Python 3.10 and 3.12. The repository's existing supply-chain and container security workflows remain required before merge.
+The dedicated `PCAP Ingestion Contracts` GitHub Actions workflow runs Ruff and focused pytest coverage on Python 3.10 and 3.12. Its dashboard boundary contract prevents regression to whole-capture `rdpcap`, temporary-file handling inside the UI, or `UploadedFile.getbuffer()` materialization. The repository's existing supply-chain and container security workflows remain required before merge.

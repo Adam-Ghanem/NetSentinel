@@ -223,3 +223,24 @@ def test_parse_error_budget_fails_closed(monkeypatch, tmp_path):
             policy=PcapIngestionPolicy(max_upload_bytes=100, max_packets=10, max_parse_errors=1),
             parser=parser,
         )
+
+
+def test_parse_error_budget_preserves_parser_failure_as_cause(monkeypatch, tmp_path):
+    capture = tmp_path / "capture.pcap"
+    write_capture_fixture(capture)
+    FakeReader.packets = [packet(1), packet(2)]
+    monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
+
+    def parser(_packet, _timestamp):
+        raise ValueError("malformed")
+
+    with pytest.raises(PcapIngestionError) as exc_info:
+        ingest_pcap_file(
+            capture,
+            CapturingDatabase(),
+            policy=PcapIngestionPolicy(max_upload_bytes=100, max_packets=10, max_parse_errors=1),
+            parser=parser,
+        )
+
+    assert isinstance(exc_info.value.__cause__, ValueError)
+    assert str(exc_info.value.__cause__) == "malformed"

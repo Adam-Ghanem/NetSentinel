@@ -1,6 +1,5 @@
 import os
 import sys
-import tempfile
 import uuid
 from datetime import datetime, timedelta
 
@@ -9,7 +8,6 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 from pyvis.network import Network
-from scapy.all import rdpcap
 
 # Add the project root to the Python path for local execution.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.analyzer import PacketAnalyzer
 from app.database import DatabaseManager
 from app.detection_engine import DetectionEngine
-from app.parser import parse_packet
+from app.pcap_ingestion import PcapIngestionError, ingest_uploaded_capture
 from app.rules_engine import RulesEngine
 from app.sniffer import PacketSniffer
 
@@ -286,31 +284,7 @@ def seed_demo_data(_db):
 
 
 def process_pcap_upload(_db, uploaded_file):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pcap") as temp_file:
-        temp_file.write(uploaded_file.getbuffer())
-        temp_path = temp_file.name
-
-    packets = rdpcap(temp_path)
-    stored_count = 0
-
-    try:
-        for packet in packets:
-            packet_time = getattr(packet, "time", None)
-            if packet_time is not None:
-                timestamp = datetime.fromtimestamp(float(packet_time))
-            else:
-                timestamp = datetime.utcnow()
-
-            packet_data = parse_packet(packet, timestamp)
-            _db.add_packet(packet_data)
-            stored_count += 1
-    finally:
-        try:
-            os.remove(temp_path)
-        except OSError:
-            pass
-
-    return stored_count
+    return ingest_uploaded_capture(uploaded_file, _db)
 
 
 db = get_db()
@@ -411,10 +385,22 @@ def analysis_page():
     if uploaded_file is not None:
         if st.button("Analyze and Store PCAP Metadata"):
             try:
-                stored_count = process_pcap_upload(db, uploaded_file)
-                st.success(f"Stored metadata for {stored_count} packets.")
+                result = process_pcap_upload(db, uploaded_file)
+                st.success(
+                    "PCAP ingestion complete: "
+                    f"processed {result.processed_packets}, "
+                    f"stored {result.stored_packets}, "
+                    f"parse errors {result.parse_errors}."
+                )
+                if result.truncated:
+                    st.warning(
+                        "The capture reached the reviewed packet limit; remaining packets "
+                        "were not processed."
+                    )
+            except PcapIngestionError as error:
+                st.error(f"PCAP rejected by ingestion policy: {error}")
             except Exception as error:
-                st.error(f"Unable to process PCAP: {error}")
+                st.error(f"Unable to persist PCAP metadata: {error}")
 
     st.markdown("---")
     st.subheader("Traffic Statistics")

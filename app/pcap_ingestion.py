@@ -162,12 +162,12 @@ def ingest_pcap_file(
 
             try:
                 packet_data = parser(packet, timestamp)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError) as error:
                 parse_errors += 1
                 if parse_errors > policy.max_parse_errors:
                     raise PcapIngestionError(
                         "capture exceeded the permitted packet parse-error budget"
-                    )
+                    ) from error
                 continue
 
             packet_batch.append(packet_data)

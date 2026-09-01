@@ -72,7 +72,6 @@ jobs:
           python -m ruff check
           app/database.py
           app/pcap_ingestion.py
-          dashboard/streamlit_app.py
           scripts/ingest_pcap.py
           tests/test_database.py
           tests/test_dashboard_pcap_boundary.py

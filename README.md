@@ -105,6 +105,7 @@ app/
 - duplicate-alert suppression with cooldowns;
 - sanitized detector-pressure and suppression metrics;
 - bounded streaming PCAP/PCAPNG ingestion with upload, packet, parse-error, and batch limits;
+- bounded Streamlit PCAP/PCAPNG uploads with aggregate ingestion results and truncation warnings;
 - atomic packet-batch persistence with rollback on invalid records;
 - a safe PCAP ingestion CLI with aggregate result reporting;
 - SQLite-backed packet, alert, case, IOC-cache, and user models;
@@ -120,7 +121,6 @@ app/
 
 ### Still in Progress
 
-- migrate the legacy Streamlit PCAP upload helper onto the bounded ingestion service;
 - stronger live-collection controls and dashboard integration;
 - alert-to-case investigation workflow improvements;
 - dashboard report-download integration;
@@ -178,7 +178,7 @@ Then open `http://localhost:8501`.
 
 ### Bounded PCAP ingestion
 
-For the reviewed streaming ingestion path, use the CLI:
+The Analysis workspace routes uploaded `.pcap` and `.pcapng` files through the same reviewed bounded ingestion service as the CLI. For local or scripted use:
 
 ```bash
 python scripts/ingest_pcap.py capture.pcap
@@ -227,6 +227,8 @@ Focused PCAP-ingestion verification:
 ```bash
 python -m pytest \
   tests/test_database.py \
+  tests/test_dashboard_pcap_boundary.py \
+  tests/test_pcap_format_validation.py \
   tests/test_pcap_ingestion.py \
   tests/test_pcap_ingestion_security.py \
   tests/test_pcap_cli.py

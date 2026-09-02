@@ -20,9 +20,11 @@ Packet timestamps are normalized to timezone-aware UTC before they cross the par
 
 This prevents evidence timestamps from depending on the sensor host's local timezone and avoids mixing naive and timezone-aware values in downstream analysis. The normalization changes representation only; it does not rewrite the capture's epoch value.
 
+Invalid, non-numeric, overflowing, or otherwise unrepresentable capture timestamps are treated as malformed packet metadata. They consume the same bounded parse-error budget as parser failures instead of escaping the ingestion boundary. If the budget is exceeded, the original timestamp-conversion error is preserved as the chained cause.
+
 ## Failure semantics
 
-Packet parser `TypeError` and `ValueError` failures consume the parse-error budget and skip the malformed packet. Once the budget is exceeded, ingestion fails closed with `PcapIngestionError`. The original parser exception is retained as the chained cause so diagnostics preserve the failure context without weakening the reviewed boundary.
+Packet timestamp-normalization failures and parser `TypeError`/`ValueError` failures consume the parse-error budget and skip the malformed packet. Once the budget is exceeded, ingestion fails closed with `PcapIngestionError`. The original conversion or parser exception is retained as the chained cause so diagnostics preserve the failure context without weakening the reviewed boundary.
 
 Database persistence failures are not reclassified as parse failures. They propagate to the caller so storage outages, schema faults, or validation errors are visible and cannot silently turn into packet skips.
 

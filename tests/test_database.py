@@ -1,8 +1,11 @@
+import datetime
 import sqlite3
+import warnings
 
 import pytest
 from sqlalchemy import inspect, text
 
+import app.database as database_module
 from app.database import AlertModel, DatabaseManager, UserModel
 
 
@@ -115,6 +118,36 @@ def test_add_packets_rolls_back_entire_batch_on_invalid_record(database):
         )
 
     assert database.get_packets(limit=10) == []
+
+
+def test_database_utc_clock_preserves_naive_storage_contract():
+    clock = database_module._utcnow_naive
+    now = clock()
+    expected = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
+    assert now.tzinfo is None
+    assert abs((expected - now).total_seconds()) < 1
+
+
+def test_database_timestamp_defaults_emit_no_utcnow_deprecation(database):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", DeprecationWarning)
+        database.add_packets([{"protocol": "TCP", "packet_size": 60}])
+        database.insert_alert(
+            {
+                "alert_id": "ALERT-TIME",
+                "alert_type": "Clock contract",
+                "severity": "Low",
+            }
+        )
+
+    utcnow_warnings = [
+        warning
+        for warning in caught
+        if issubclass(warning.category, DeprecationWarning)
+        and "utcnow" in str(warning.message).lower()
+    ]
+    assert utcnow_warnings == []
 
 
 def test_sqlite_foreign_keys_are_enabled(database):

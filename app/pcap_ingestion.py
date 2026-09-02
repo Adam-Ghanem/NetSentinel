@@ -4,7 +4,7 @@ import os
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, BinaryIO
 
@@ -155,9 +155,9 @@ def ingest_pcap_file(
             processed_packets += 1
             packet_time = getattr(packet, "time", None)
             timestamp = (
-                datetime.fromtimestamp(float(packet_time))
+                datetime.fromtimestamp(float(packet_time), tz=timezone.utc)
                 if packet_time is not None
-                else datetime.utcnow()
+                else datetime.now(timezone.utc)
             )
 
             try:

@@ -14,6 +14,12 @@ All limits are positive integers and are validated when the policy is created. A
 
 Uploaded file-like objects can be staged with `ingest_uploaded_capture()`. The upload is copied to a temporary file in bounded chunks, the byte limit is enforced while streaming, and the temporary file is removed in a `finally` block after success or failure.
 
+## Timestamp semantics
+
+Packet timestamps are normalized to timezone-aware UTC before they cross the parser boundary. Capture-provided epoch timestamps use UTC explicitly, and packets without a timestamp receive a timezone-aware UTC fallback timestamp at ingestion time.
+
+This prevents evidence timestamps from depending on the sensor host's local timezone and avoids mixing naive and timezone-aware values in downstream analysis. The normalization changes representation only; it does not rewrite the capture's epoch value.
+
 ## Failure semantics
 
 Packet parser `TypeError` and `ValueError` failures consume the parse-error budget and skip the malformed packet. Once the budget is exceeded, ingestion fails closed with `PcapIngestionError`. The original parser exception is retained as the chained cause so diagnostics preserve the failure context without weakening the reviewed boundary.

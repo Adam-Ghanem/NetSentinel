@@ -53,7 +53,7 @@ jobs:
           app/config.py app/contracts.py app/database.py app/detection_engine.py
           app/detection_observability.py app/enrichment.py app/event_windows.py
           app/legacy_adoption.py app/parser.py app/port_scan_detector.py
-          app/port_scan_policy.py app/rules_engine.py app/schema.py
+          app/port_scan_policy.py app/report_generator.py app/rules_engine.py app/schema.py
           app/syn_flood_detector.py app/syn_flood_policy.py
           migrations/env.py migrations/versions/0001_baseline.py
           scripts/backup_database.py scripts/check_database_health.py
@@ -70,8 +70,9 @@ jobs:
           tests/test_migration_runner.py tests/test_migrations.py tests/test_parser.py
           tests/test_port_scan_detector.py tests/test_port_scan_integration.py
           tests/test_port_scan_policy.py tests/test_predeployment.py
-          tests/test_rules_engine_contracts.py tests/test_schema_version.py
-          tests/test_secret_scanner.py tests/test_stateful_detection_integration.py
+          tests/test_report_generator.py tests/test_rules_engine_contracts.py
+          tests/test_schema_version.py tests/test_secret_scanner.py
+          tests/test_stateful_detection_integration.py
           tests/test_syn_flood_detector.py tests/test_syn_flood_policy.py
 
       - name: Run database transaction and health tests
@@ -140,6 +141,9 @@ jobs:
 
       - name: Run parser tests
         run: python -m pytest tests/test_parser.py
+
+      - name: Run PDF report tests
+        run: python -m pytest tests/test_report_generator.py
 
       - name: Run secret scanner tests
         run: python -m pytest tests/test_secret_scanner.py

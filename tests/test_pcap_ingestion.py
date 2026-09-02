@@ -206,6 +206,40 @@ def test_missing_capture_timestamp_uses_utc_aware_clock(monkeypatch, tmp_path):
     assert seen_timestamps[0].tzinfo is timezone.utc
 
 
+def test_invalid_capture_timestamp_consumes_parse_error_budget(monkeypatch, tmp_path):
+    capture = tmp_path / "capture.pcap"
+    write_capture_fixture(capture)
+    FakeReader.packets = [packet("not-a-timestamp"), packet(2.0)]
+    monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
+
+    database = CapturingDatabase()
+    result = ingest_pcap_file(
+        capture,
+        database,
+        policy=PcapIngestionPolicy(max_upload_bytes=100, max_packets=10, max_parse_errors=1),
+    )
+
+    assert result.processed_packets == 2
+    assert result.parse_errors == 1
+    assert result.stored_packets == 1
+
+
+def test_invalid_capture_timestamp_budget_failure_preserves_cause(monkeypatch, tmp_path):
+    capture = tmp_path / "capture.pcap"
+    write_capture_fixture(capture)
+    FakeReader.packets = [packet("invalid"), packet(float("inf"))]
+    monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
+
+    with pytest.raises(PcapIngestionError, match="parse-error budget") as exc_info:
+        ingest_pcap_file(
+            capture,
+            CapturingDatabase(),
+            policy=PcapIngestionPolicy(max_upload_bytes=100, max_packets=10, max_parse_errors=1),
+        )
+
+    assert isinstance(exc_info.value.__cause__, (TypeError, ValueError, OverflowError, OSError))
+
+
 def test_batch_capable_database_receives_bounded_flushes(monkeypatch, tmp_path):
     capture = tmp_path / "capture.pcap"
     write_capture_fixture(capture)

@@ -237,7 +237,10 @@ def test_invalid_capture_timestamp_budget_failure_preserves_cause(monkeypatch, t
             policy=PcapIngestionPolicy(max_upload_bytes=100, max_packets=10, max_parse_errors=1),
         )
 
-    assert isinstance(exc_info.value.__cause__, (TypeError, ValueError, OverflowError, OSError))
+    assert isinstance(
+        exc_info.value.__cause__,
+        TypeError | ValueError | OverflowError | OSError,
+    )
 
 
 def test_batch_capable_database_receives_bounded_flushes(monkeypatch, tmp_path):

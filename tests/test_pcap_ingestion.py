@@ -1,3 +1,4 @@
+from datetime import timezone
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -166,6 +167,43 @@ def test_packet_budget_counts_every_packet_seen(monkeypatch, tmp_path):
     assert result.stored_packets == 1
     assert result.parse_errors == 1
     assert result.truncated is True
+
+
+def test_capture_packet_timestamps_are_normalized_to_utc(monkeypatch, tmp_path):
+    capture = tmp_path / "capture.pcap"
+    write_capture_fixture(capture)
+    FakeReader.packets = [packet(1.0)]
+    monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
+
+    seen_timestamps = []
+
+    def parser(_packet, timestamp):
+        seen_timestamps.append(timestamp)
+        return {"timestamp": timestamp}
+
+    ingest_pcap_file(capture, CapturingDatabase(), parser=parser)
+
+    assert len(seen_timestamps) == 1
+    assert seen_timestamps[0].tzinfo is timezone.utc
+    assert seen_timestamps[0].timestamp() == 1.0
+
+
+def test_missing_capture_timestamp_uses_utc_aware_clock(monkeypatch, tmp_path):
+    capture = tmp_path / "capture.pcap"
+    write_capture_fixture(capture)
+    FakeReader.packets = [SimpleNamespace(time=None)]
+    monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
+
+    seen_timestamps = []
+
+    def parser(_packet, timestamp):
+        seen_timestamps.append(timestamp)
+        return {"timestamp": timestamp}
+
+    ingest_pcap_file(capture, CapturingDatabase(), parser=parser)
+
+    assert len(seen_timestamps) == 1
+    assert seen_timestamps[0].tzinfo is timezone.utc
 
 
 def test_batch_capable_database_receives_bounded_flushes(monkeypatch, tmp_path):

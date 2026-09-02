@@ -212,11 +212,15 @@ def test_invalid_capture_timestamp_consumes_parse_error_budget(monkeypatch, tmp_
     FakeReader.packets = [packet("not-a-timestamp"), packet(2.0)]
     monkeypatch.setattr(ingestion, "PcapReader", FakeReader)
 
+    def parser(_packet, timestamp):
+        return {"timestamp": timestamp}
+
     database = CapturingDatabase()
     result = ingest_pcap_file(
         capture,
         database,
         policy=PcapIngestionPolicy(max_upload_bytes=100, max_packets=10, max_parse_errors=1),
+        parser=parser,
     )
 
     assert result.processed_packets == 2

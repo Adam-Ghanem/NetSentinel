@@ -127,7 +127,9 @@ class ReportGenerator:
 
         # Traffic Overview
         self._add_heading("2. Traffic Overview", level=2)
-        self._add_paragraph(report_data.get("traffic_overview", "Summary of overall network activity."))
+        self._add_paragraph(
+            report_data.get("traffic_overview", "Summary of overall network activity.")
+        )
         if "traffic_stats" in report_data:
             stats_data = [["Metric", "Value"]]
             for ip, stats in report_data["traffic_stats"].items():
@@ -213,8 +215,14 @@ class ReportGenerator:
 
 if __name__ == "__main__":
     report_data = {
-        "executive_summary": "This is a sample executive summary for the NetSentinel security report. It highlights key findings and overall security posture.",
-        "traffic_overview": "The network experienced moderate traffic with a few spikes during the reporting period.",
+        "executive_summary": (
+            "This is a sample executive summary for the NetSentinel security report. "
+            "It highlights key findings and overall security posture."
+        ),
+        "traffic_overview": (
+            "The network experienced moderate traffic with a few spikes during the "
+            "reporting period."
+        ),
         "traffic_stats": {
             "192.168.1.10": {"total_packets": 1500, "total_bytes": 150000},
             "10.0.0.5": {"total_packets": 800, "total_bytes": 80000},
@@ -250,7 +258,10 @@ if __name__ == "__main__":
             "Implement DNS sinkholing for known malicious domains.",
             "Conduct regular security awareness training for employees.",
         ],
-        "appendix": "This section would contain raw logs, detailed packet captures, or other technical data not suitable for the main report body.",
+        "appendix": (
+            "This section would contain raw logs, detailed packet captures, or other "
+            "technical data not suitable for the main report body."
+        ),
     }
 
     generator = ReportGenerator("sample_security_report.pdf")

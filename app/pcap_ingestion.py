@@ -153,12 +153,20 @@ def ingest_pcap_file(
                 break
 
             processed_packets += 1
-            packet_time = getattr(packet, "time", None)
-            timestamp = (
-                datetime.fromtimestamp(float(packet_time), tz=timezone.utc)
-                if packet_time is not None
-                else datetime.now(timezone.utc)
-            )
+            try:
+                packet_time = getattr(packet, "time", None)
+                timestamp = (
+                    datetime.fromtimestamp(float(packet_time), tz=timezone.utc)
+                    if packet_time is not None
+                    else datetime.now(timezone.utc)
+                )
+            except (TypeError, ValueError, OverflowError, OSError) as error:
+                parse_errors += 1
+                if parse_errors > policy.max_parse_errors:
+                    raise PcapIngestionError(
+                        "capture exceeded the permitted packet parse-error budget"
+                    ) from error
+                continue
 
             try:
                 packet_data = parser(packet, timestamp)

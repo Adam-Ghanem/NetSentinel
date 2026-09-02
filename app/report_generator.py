@@ -1,8 +1,11 @@
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
+from xml.sax.saxutils import escape
+
 from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
 from app.utils import get_timestamp
 
 
@@ -77,7 +80,8 @@ class ReportGenerator:
         self.elements.append(Spacer(1, 0.2 * inch))
 
     def _add_paragraph(self, text):
-        self.elements.append(Paragraph(str(text), self.styles["NetSentinelBody"]))
+        literal_text = escape(str(text))
+        self.elements.append(Paragraph(literal_text, self.styles["NetSentinelBody"]))
         self.elements.append(Spacer(1, 0.1 * inch))
 
     def _add_table(self, data, col_widths=None):

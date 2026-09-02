@@ -22,10 +22,15 @@ from app.config import Config
 Base = declarative_base()
 
 
+def _utcnow_naive():
+    """Return UTC as a naive datetime for the existing database storage contract."""
+    return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
+
 class PacketModel(Base):
     __tablename__ = "packets"
     id = Column(Integer, primary_key=True)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=_utcnow_naive, index=True)
     source_mac = Column(String)
     dest_mac = Column(String)
     source_ip = Column(String, index=True)
@@ -48,7 +53,7 @@ class AlertModel(Base):
     __tablename__ = "alerts"
     id = Column(Integer, primary_key=True)
     alert_id = Column(String, unique=True, nullable=False)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=_utcnow_naive, index=True)
     source_ip = Column(String, index=True)
     dest_ip = Column(String, index=True)
     alert_type = Column(String, nullable=False, index=True)
@@ -68,11 +73,11 @@ class CaseModel(Base):
     status = Column(String, default="Open", index=True)
     severity = Column(String, index=True)
     tags = Column(String)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow_naive)
     updated_at = Column(
         DateTime,
-        default=datetime.datetime.utcnow,
-        onupdate=datetime.datetime.utcnow,
+        default=_utcnow_naive,
+        onupdate=_utcnow_naive,
     )
     alert = relationship("AlertModel")
 

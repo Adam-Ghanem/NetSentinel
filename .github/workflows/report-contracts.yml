@@ -4,15 +4,23 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "app/report_data.py"
       - "app/report_generator.py"
+      - "dashboard/streamlit_app.py"
+      - "tests/test_report_data.py"
       - "tests/test_report_generator.py"
+      - "tests/test_dashboard_report_boundary.py"
       - "docs/report-generation.md"
       - ".github/workflows/report-contracts.yml"
   push:
     branches: [main]
     paths:
+      - "app/report_data.py"
       - "app/report_generator.py"
+      - "dashboard/streamlit_app.py"
+      - "tests/test_report_data.py"
       - "tests/test_report_generator.py"
+      - "tests/test_dashboard_report_boundary.py"
       - "docs/report-generation.md"
       - ".github/workflows/report-contracts.yml"
 
@@ -54,10 +62,21 @@ jobs:
           python -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Lint report boundary
-        run: python -m ruff check app/report_generator.py tests/test_report_generator.py
+        run: >-
+          python -m ruff check
+          app/report_data.py
+          app/report_generator.py
+          dashboard/streamlit_app.py
+          tests/test_report_data.py
+          tests/test_report_generator.py
+          tests/test_dashboard_report_boundary.py
 
       - name: Run report regression contracts
-        run: python -m pytest tests/test_report_generator.py
+        run: >-
+          python -m pytest
+          tests/test_report_data.py
+          tests/test_report_generator.py
+          tests/test_dashboard_report_boundary.py
 
       - name: Scan repository for committed secrets
         run: python scripts/check_secrets.py .

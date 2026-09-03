@@ -22,4 +22,5 @@ def test_dashboard_exposes_pdf_download_without_persistent_report_file():
     assert 'mime="application/pdf"' in source
     assert 'file_name="netsentinel_security_report.pdf"' in source
     assert "generate_report_bytes" in source
-    assert "security_report.pdf" not in source
+    assert 'ReportGenerator("security_report.pdf")' not in source
+    assert ".generate_report(" not in source

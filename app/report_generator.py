@@ -1,3 +1,4 @@
+from io import BytesIO
 from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
@@ -105,6 +106,18 @@ class ReportGenerator:
         )
         self.elements.append(table)
         self.elements.append(Spacer(1, 0.2 * inch))
+
+    def generate_report_bytes(self, report_data):
+        """Generate a PDF into memory without creating a persistent report file."""
+        buffer = BytesIO()
+        original_output = self.output_filename
+        self.output_filename = buffer
+        try:
+            self.generate_report(report_data)
+            return buffer.getvalue()
+        finally:
+            self.output_filename = original_output
+            buffer.close()
 
     def generate_report(self, report_data):
         doc = SimpleDocTemplate(self.output_filename, pagesize=letter)

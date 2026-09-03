@@ -16,6 +16,8 @@ from app.analyzer import PacketAnalyzer
 from app.database import DatabaseManager
 from app.detection_engine import DetectionEngine
 from app.pcap_ingestion import PcapIngestionError, ingest_uploaded_capture
+from app.report_data import build_report_data
+from app.report_generator import ReportGenerator
 from app.rules_engine import RulesEngine
 from app.sniffer import PacketSniffer
 
@@ -260,8 +262,12 @@ def seed_demo_data(_db):
             "dest_ip": "192.168.1.1",
             "alert_type": "Multiple connection attempts",
             "severity": "Medium",
-            "description": "Demo alert showing repeated connection attempts to common service ports.",
-            "recommended_action": "Review the source host and confirm whether the scan is expected lab activity.",
+            "description": (
+                "Demo alert showing repeated connection attempts to common service ports."
+            ),
+            "recommended_action": (
+                "Review the source host and confirm whether the scan is expected lab activity."
+            ),
             "mitre_attack": "T1046",
         },
         {
@@ -285,6 +291,11 @@ def seed_demo_data(_db):
 
 def process_pcap_upload(_db, uploaded_file):
     return ingest_uploaded_capture(uploaded_file, _db)
+
+
+def build_pdf_report(packets, alerts):
+    report_data = build_report_data(packets, alerts)
+    return ReportGenerator().generate_report_bytes(report_data)
 
 
 db = get_db()
@@ -325,11 +336,23 @@ def overview_page():
             """
             <div class="empty-state">
                 <h3>No traffic data yet</h3>
-                <p>The dashboard is working, but the local database does not contain captured packet metadata yet.</p>
+                <p>
+                    The dashboard is working, but the local database does not contain
+                    captured packet metadata yet.
+                </p>
                 <ul class="step-list">
-                    <li>Click <strong>Load Demo Data</strong> in the sidebar to see the dashboard populated.</li>
-                    <li>Use <strong>Start Local Collection</strong> only in a lab or authorized network.</li>
-                    <li>Use the <strong>Analysis</strong> page to upload a PCAP file and store packet metadata.</li>
+                    <li>
+                        Click <strong>Load Demo Data</strong> in the sidebar to see the
+                        dashboard populated.
+                    </li>
+                    <li>
+                        Use <strong>Start Local Collection</strong> only in a lab or
+                        authorized network.
+                    </li>
+                    <li>
+                        Use the <strong>Analysis</strong> page to upload a PCAP file and
+                        store packet metadata.
+                    </li>
                 </ul>
             </div>
             """,
@@ -352,7 +375,7 @@ def overview_page():
             net.from_nx(graph)
             graph_path = "network_graph.html"
             net.save_graph(graph_path)
-            with open(graph_path, "r", encoding="utf-8") as graph_file:
+            with open(graph_path, encoding="utf-8") as graph_file:
                 components.html(graph_file.read(), height=460)
         else:
             st.info("No connection relationships are available yet.")
@@ -426,7 +449,10 @@ def analysis_page():
             )
         st.dataframe(pd.DataFrame(rows), use_container_width=True)
     else:
-        st.info("Traffic statistics are generated during live collection. Stored packet metadata is available in Overview.")
+        st.info(
+            "Traffic statistics are generated during live collection. "
+            "Stored packet metadata is available in Overview."
+        )
 
 
 def alerts_page():
@@ -458,6 +484,18 @@ def alerts_page():
         file_name="netsentinel_alerts.csv",
         mime="text/csv",
     )
+
+    try:
+        packets = db.get_packets(limit=1000)
+        pdf_bytes = build_pdf_report(packets, alerts)
+        st.download_button(
+            "Download security report as PDF",
+            pdf_bytes,
+            file_name="netsentinel_security_report.pdf",
+            mime="application/pdf",
+        )
+    except Exception as error:
+        st.error(f"Unable to generate PDF report: {error}")
 
 
 def main():

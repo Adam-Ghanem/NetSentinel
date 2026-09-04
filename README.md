@@ -19,7 +19,8 @@ NetSentinel turns network metadata into analyst-friendly evidence through a smal
 - streams bounded PCAP/PCAPNG ingestion into atomic packet batches;
 - exposes sanitized process-local detection metrics;
 - supports IOC enrichment with optional external provider keys;
-- provides a Streamlit SOC dashboard for packets, alerts, cases, IOC lookup, and reports.
+- provides a Streamlit SOC dashboard for packets, alerts, cases, IOC lookup, and reports;
+- exposes a small versioned read-only FastAPI surface with liveness and database readiness checks.
 
 ## Detection Engineering
 
@@ -40,6 +41,7 @@ Detailed design and operational guidance:
 - [Alert suppression](docs/alert-suppression.md)
 - [Detection observability](docs/detection-observability.md)
 - [Bounded PCAP ingestion](docs/pcap-ingestion.md)
+- [Read-only API contract](docs/api.md)
 
 The detectors are evidence signals, not automatic proof of compromise. Scanner traffic, monitoring systems, automation, retries, and legitimate periodic software can produce similar patterns, so alerts should be validated with asset and operational context.
 
@@ -67,7 +69,7 @@ sniffer -> parser -> analyzer
              +-------+-------+
              |               |
              v               v
-          database        dashboard
+          database        dashboard/API
 ```
 
 Core modules:
@@ -114,6 +116,7 @@ app/
 - Streamlit dashboard surfaces for SOC-style investigation;
 - IOC enrichment structure for AbuseIPDB and VirusTotal;
 - PDF report generation module;
+- versioned read-only FastAPI alert/stat endpoints with live/ready probes;
 - exact dependency pins and dependency-policy checks;
 - repository secret scanning;
 - non-root Docker runtime, health checks, migration jobs, and container security gates;
@@ -125,7 +128,7 @@ app/
 - alert-to-case investigation workflow improvements;
 - dashboard report-download integration;
 - reviewed runtime detector configuration and scoped allowlisting;
-- authenticated metrics/API export;
+- first-party API authentication and authorization before any mutation endpoints;
 - realistic traffic fixtures and broader end-to-end testing;
 - clearer sensor/UI separation for larger deployments.
 
@@ -174,7 +177,13 @@ Run the dashboard:
 streamlit run dashboard/streamlit_app.py --server.port=8501 --server.address=0.0.0.0
 ```
 
-Then open `http://localhost:8501`.
+Run the read-only API:
+
+```bash
+uvicorn api:app --host 127.0.0.1 --port 8000
+```
+
+The API exposes `/health/live`, `/health/ready`, `/api/v1/alerts`, and `/api/v1/stats`. It intentionally has no SOAR/write endpoint until authentication and authorization are implemented. See [docs/api.md](docs/api.md).
 
 ### Bounded PCAP ingestion
 
@@ -206,6 +215,12 @@ Run the repository quick check:
 
 ```bash
 make check
+```
+
+Focused API verification:
+
+```bash
+make api-check
 ```
 
 Focused stateful-detection verification:
@@ -240,7 +255,7 @@ Secret hygiene:
 python scripts/check_secrets.py .
 ```
 
-CI additionally covers configuration safety, database transactions, migrations, schema compatibility, container configuration, dependency policy, supply-chain checks, stateful detection contracts, and bounded PCAP ingestion on Python 3.10 and 3.12.
+CI additionally covers configuration safety, database transactions, migrations, schema compatibility, container configuration, dependency policy, supply-chain checks, stateful detection contracts, bounded PCAP ingestion, and versioned API contracts on Python 3.10 and 3.12.
 
 ## Security Model
 
@@ -254,6 +269,7 @@ NetSentinel follows a few simple defensive engineering rules:
 - production configuration rejects unsafe demo behavior;
 - the container runtime is non-root;
 - database migrations and readiness checks are explicit deployment concerns;
+- the API is read-only until authenticated/authorized mutations are designed;
 - alerts remain evidence that requires analyst validation.
 
 If a real credential is ever committed, remove it from the repository and rotate/revoke it immediately. Secret scanning is a preventive control, not a substitute for credential rotation.

@@ -6,14 +6,18 @@ on:
     paths:
       - "app/case_manager.py"
       - "app/database.py"
+      - "migrations/versions/*.py"
       - "tests/test_case_workflow.py"
+      - "tests/test_case_audit.py"
       - ".github/workflows/case-contracts.yml"
   push:
     branches: [main]
     paths:
       - "app/case_manager.py"
       - "app/database.py"
+      - "migrations/versions/*.py"
       - "tests/test_case_workflow.py"
+      - "tests/test_case_audit.py"
       - ".github/workflows/case-contracts.yml"
 
 permissions:
@@ -54,7 +58,17 @@ jobs:
           python -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Lint case workflow boundary
-        run: python -m ruff check app/case_manager.py app/database.py tests/test_case_workflow.py
+        run: |
+          python -m ruff check \
+            app/case_manager.py \
+            app/database.py \
+            migrations/versions/0002_case_audit_ownership.py \
+            tests/test_case_workflow.py \
+            tests/test_case_audit.py
 
       - name: Run case workflow contracts
-        run: python -m pytest tests/test_case_workflow.py tests/test_database.py
+        run: |
+          python -m pytest \
+            tests/test_case_workflow.py \
+            tests/test_case_audit.py \
+            tests/test_database.py

@@ -154,15 +154,26 @@ class CaseManager:
                 raise ValueError("sha256 must be exactly 64 hexadecimal characters")
 
         actor_value = self._validate_actor(actor)
+        evidence_id = str(uuid.uuid4())
         evidence_data = {
-            "evidence_id": str(uuid.uuid4()),
+            "evidence_id": evidence_id,
             "case_id": case_id,
             "evidence_type": normalized_type,
             "reference": normalized_reference,
             "sha256": normalized_sha256,
             "added_by": actor_value,
         }
-        return self.db.insert_case_evidence(evidence_data)
+        event_data = self._event(
+            case_id,
+            "case.evidence_added",
+            actor_value,
+            "",
+            (
+                f"evidence_id={evidence_id};type={normalized_type};"
+                f"sha256={'yes' if normalized_sha256 else 'no'}"
+            ),
+        )
+        return self.db.insert_case_evidence_with_event(evidence_data, event_data)
 
     def get_case(self, case_id):
         return self.db.get_case(case_id)

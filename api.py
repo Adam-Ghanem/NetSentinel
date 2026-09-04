@@ -30,9 +30,17 @@ class StatsSchema(BaseModel):
     sample_limit: int
 
 
-def create_app(database_url: str | None = None) -> FastAPI:
+def create_app(
+    database_url: str | None = None,
+    database_manager: DatabaseManager | None = None,
+) -> FastAPI:
+    if database_url is not None and database_manager is not None:
+        raise ValueError("provide database_url or database_manager, not both")
+
     application = FastAPI(title="NetSentinel API", version=API_VERSION)
-    database = DatabaseManager(database_url) if database_url else DatabaseManager()
+    database = database_manager or (
+        DatabaseManager(database_url) if database_url else DatabaseManager()
+    )
     application.state.database = database
 
     @application.get("/")

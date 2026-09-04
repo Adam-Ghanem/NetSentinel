@@ -105,3 +105,30 @@ def test_evidence_validation_rejects_invalid_values(
             actor="analyst.alice",
             **values,
         )
+
+
+def test_case_evidence_can_filter_by_type(database, case):
+    manager = CaseManager(database)
+    manager.add_evidence(
+        case.case_id,
+        evidence_type="packet_capture",
+        reference="captures/incident.pcap",
+        actor="analyst.alice",
+    )
+    report = manager.add_evidence(
+        case.case_id,
+        evidence_type="report",
+        reference="reports/incident.pdf",
+        actor="analyst.alice",
+    )
+
+    stored = manager.get_case_evidence(case.case_id, evidence_type="report")
+
+    assert [item.evidence_id for item in stored] == [report.evidence_id]
+
+
+def test_case_evidence_rejects_unbounded_limit(database, case):
+    manager = CaseManager(database)
+
+    with pytest.raises(ValueError, match="limit"):
+        manager.get_case_evidence(case.case_id, limit=10001)

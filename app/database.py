@@ -345,6 +345,13 @@ class DatabaseManager:
             session.add(evidence)
         return evidence
 
+    def insert_case_evidence_with_event(self, evidence_data, event_data):
+        with self.transaction() as session:
+            evidence = CaseEvidenceModel(**evidence_data)
+            session.add(evidence)
+            session.add(CaseAuditEventModel(**event_data))
+        return evidence
+
     def get_case_evidence(self, case_id, limit=500):
         limit = self._validate_limit(limit)
         with self.Session() as session:

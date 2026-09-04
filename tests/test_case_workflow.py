@@ -129,3 +129,40 @@ def test_case_manager_returns_none_for_unknown_case(database):
     manager = CaseManager(database)
 
     assert manager.get_case("CASE-MISSING") is None
+
+
+def test_case_manager_assigns_normalized_owner(database, stored_alert):
+    manager = CaseManager(database)
+    case = manager.create_case_from_alert(
+        {"alert_id": stored_alert.alert_id, "severity": stored_alert.severity},
+        "Owner assignment",
+    )
+
+    updated = manager.assign_owner(case.case_id, "  analyst.alice  ")
+
+    assert updated.owner == "analyst.alice"
+    assert manager.get_case(case.case_id).owner == "analyst.alice"
+
+
+def test_case_manager_can_unassign_owner(database, stored_alert):
+    manager = CaseManager(database)
+    case = manager.create_case_from_alert(
+        {"alert_id": stored_alert.alert_id, "severity": stored_alert.severity},
+        "Owner removal",
+    )
+    manager.assign_owner(case.case_id, "analyst.alice")
+
+    updated = manager.assign_owner(case.case_id, None)
+
+    assert updated.owner is None
+
+
+def test_case_manager_rejects_oversized_owner(database, stored_alert):
+    manager = CaseManager(database)
+    case = manager.create_case_from_alert(
+        {"alert_id": stored_alert.alert_id, "severity": stored_alert.severity},
+        "Owner validation",
+    )
+
+    with pytest.raises(ValueError, match="owner"):
+        manager.assign_owner(case.case_id, "a" * 129)

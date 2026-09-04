@@ -352,13 +352,17 @@ class DatabaseManager:
             session.add(CaseAuditEventModel(**event_data))
         return evidence
 
-    def get_case_evidence(self, case_id, limit=500):
+    def get_case_evidence(self, case_id, limit=500, evidence_type=None):
         limit = self._validate_limit(limit)
         with self.Session() as session:
+            query = session.query(CaseEvidenceModel).filter_by(case_id=case_id)
+            if evidence_type is not None:
+                query = query.filter_by(evidence_type=evidence_type)
             return (
-                session.query(CaseEvidenceModel)
-                .filter_by(case_id=case_id)
-                .order_by(CaseEvidenceModel.created_at.asc(), CaseEvidenceModel.id.asc())
+                query.order_by(
+                    CaseEvidenceModel.created_at.asc(),
+                    CaseEvidenceModel.id.asc(),
+                )
                 .limit(limit)
                 .all()
             )

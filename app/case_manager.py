@@ -4,6 +4,7 @@ import uuid
 _ALLOWED_STATUSES = frozenset({"Open", "In Progress", "Resolved", "Closed"})
 _MAX_TITLE_LENGTH = 200
 _MAX_NOTE_LENGTH = 10_000
+_MAX_OWNER_LENGTH = 128
 
 
 class CaseManager:
@@ -38,6 +39,17 @@ class CaseManager:
             allowed = ", ".join(sorted(_ALLOWED_STATUSES))
             raise ValueError(f"status must be one of: {allowed}")
         return self.db.update_case(case_id, {"status": status})
+
+    def assign_owner(self, case_id, owner):
+        if owner is None:
+            normalized_owner = None
+        else:
+            normalized_owner = str(owner).strip()
+            if not normalized_owner:
+                normalized_owner = None
+            elif len(normalized_owner) > _MAX_OWNER_LENGTH:
+                raise ValueError(f"owner must be at most {_MAX_OWNER_LENGTH} characters")
+        return self.db.update_case(case_id, {"owner": normalized_owner})
 
     def add_analyst_notes(self, case_id, notes):
         normalized_notes = self._validate_notes(notes)

@@ -1,0 +1,60 @@
+name: Case Contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/case_manager.py"
+      - "app/database.py"
+      - "tests/test_case_workflow.py"
+      - ".github/workflows/case-contracts.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/case_manager.py"
+      - "app/database.py"
+      - "tests/test_case_workflow.py"
+      - ".github/workflows/case-contracts.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: case-contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  case-contracts:
+    name: Case contracts (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint case workflow boundary
+        run: python -m ruff check app/case_manager.py app/database.py tests/test_case_workflow.py
+
+      - name: Run case workflow contracts
+        run: python -m pytest tests/test_case_workflow.py tests/test_database.py

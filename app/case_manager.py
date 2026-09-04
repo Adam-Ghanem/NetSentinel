@@ -5,13 +5,21 @@ _ALLOWED_STATUSES = frozenset({"Open", "In Progress", "Resolved", "Closed"})
 _MAX_TITLE_LENGTH = 200
 _MAX_NOTE_LENGTH = 10_000
 _MAX_OWNER_LENGTH = 128
+_MAX_ACTOR_LENGTH = 128
 
 
 class CaseManager:
     def __init__(self, database_manager):
         self.db = database_manager
 
-    def create_case_from_alert(self, alert_data, title, analyst_notes="", tags=""):
+    def create_case_from_alert(
+        self,
+        alert_data,
+        title,
+        analyst_notes="",
+        tags="",
+        actor="system",
+    ):
         alert_id = str(alert_data.get("alert_id") or "").strip()
         if not alert_id:
             raise ValueError("alert_id must not be empty")
@@ -23,8 +31,10 @@ class CaseManager:
             raise ValueError(f"title must be at most {_MAX_TITLE_LENGTH} characters")
 
         normalized_notes = self._validate_notes(analyst_notes)
+        normalized_actor = self._validate_actor(actor)
+        case_id = str(uuid.uuid4())
         case_data = {
-            "case_id": str(uuid.uuid4()),
+            "case_id": case_id,
             "alert_id": alert_id,
             "title": normalized_title,
             "analyst_notes": normalized_notes,
@@ -32,15 +42,35 @@ class CaseManager:
             "severity": alert_data.get("severity"),
             "tags": str(tags).strip(),
         }
-        return self.db.insert_case(case_data)
+        event_data = self._event(
+            case_id,
+            "case.created",
+            normalized_actor,
+            "",
+            "Open",
+        )
+        return self.db.insert_case_with_event(case_data, event_data)
 
-    def update_case_status(self, case_id, status):
+    def update_case_status(self, case_id, status, actor="system"):
         if status not in _ALLOWED_STATUSES:
             allowed = ", ".join(sorted(_ALLOWED_STATUSES))
             raise ValueError(f"status must be one of: {allowed}")
-        return self.db.update_case(case_id, {"status": status})
+        case = self.db.get_case(case_id)
+        if case is None:
+            return None
+        event_data = self._event(
+            case_id,
+            "case.status_changed",
+            self._validate_actor(actor),
+            str(case.status or ""),
+            status,
+        )
+        return self.db.update_case_with_event(case_id, {"status": status}, event_data)
 
-    def assign_owner(self, case_id, owner):
+    def assign_owner(self, case_id, owner, actor="system"):
+        case = self.db.get_case(case_id)
+        if case is None:
+            return None
         if owner is None:
             normalized_owner = None
         else:
@@ -49,9 +79,16 @@ class CaseManager:
                 normalized_owner = None
             elif len(normalized_owner) > _MAX_OWNER_LENGTH:
                 raise ValueError(f"owner must be at most {_MAX_OWNER_LENGTH} characters")
-        return self.db.update_case(case_id, {"owner": normalized_owner})
+        event_data = self._event(
+            case_id,
+            "case.owner_changed",
+            self._validate_actor(actor),
+            str(case.owner or ""),
+            str(normalized_owner or ""),
+        )
+        return self.db.update_case_with_event(case_id, {"owner": normalized_owner}, event_data)
 
-    def add_analyst_notes(self, case_id, notes):
+    def add_analyst_notes(self, case_id, notes, actor="system"):
         normalized_notes = self._validate_notes(notes)
         case = self.db.get_case(case_id)
         if case is None:
@@ -61,10 +98,24 @@ class CaseManager:
         combined = f"{existing}\n{normalized_notes}" if existing else normalized_notes
         if len(combined) > _MAX_NOTE_LENGTH:
             raise ValueError(f"analyst notes must be at most {_MAX_NOTE_LENGTH} characters")
-        return self.db.update_case(case_id, {"analyst_notes": combined})
+        event_data = self._event(
+            case_id,
+            "case.note_added",
+            self._validate_actor(actor),
+            "",
+            f"length={len(normalized_notes)}",
+        )
+        return self.db.update_case_with_event(
+            case_id,
+            {"analyst_notes": combined},
+            event_data,
+        )
 
     def get_case(self, case_id):
         return self.db.get_case(case_id)
+
+    def get_case_history(self, case_id, limit=500):
+        return self.db.get_case_history(case_id, limit=limit)
 
     def get_all_cases(self):
         return self.db.get_all_cases()
@@ -75,3 +126,23 @@ class CaseManager:
         if len(normalized) > _MAX_NOTE_LENGTH:
             raise ValueError(f"analyst notes must be at most {_MAX_NOTE_LENGTH} characters")
         return normalized
+
+    @staticmethod
+    def _validate_actor(actor):
+        normalized = str(actor or "").strip()
+        if not normalized:
+            raise ValueError("actor must not be empty")
+        if len(normalized) > _MAX_ACTOR_LENGTH:
+            raise ValueError(f"actor must be at most {_MAX_ACTOR_LENGTH} characters")
+        return normalized
+
+    @staticmethod
+    def _event(case_id, event_type, actor, previous_value, new_value):
+        return {
+            "event_id": str(uuid.uuid4()),
+            "case_id": case_id,
+            "event_type": event_type,
+            "actor": actor,
+            "previous_value": previous_value,
+            "new_value": new_value,
+        }

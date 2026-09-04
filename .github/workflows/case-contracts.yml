@@ -9,6 +9,7 @@ on:
       - "migrations/versions/*.py"
       - "tests/test_case_workflow.py"
       - "tests/test_case_audit.py"
+      - "tests/test_case_observability.py"
       - ".github/workflows/case-contracts.yml"
   push:
     branches: [main]
@@ -18,6 +19,7 @@ on:
       - "migrations/versions/*.py"
       - "tests/test_case_workflow.py"
       - "tests/test_case_audit.py"
+      - "tests/test_case_observability.py"
       - ".github/workflows/case-contracts.yml"
 
 permissions:
@@ -64,11 +66,13 @@ jobs:
             app/database.py \
             migrations/versions/0002_case_audit_ownership.py \
             tests/test_case_workflow.py \
-            tests/test_case_audit.py
+            tests/test_case_audit.py \
+            tests/test_case_observability.py
 
       - name: Run case workflow contracts
         run: |
           python -m pytest \
             tests/test_case_workflow.py \
             tests/test_case_audit.py \
+            tests/test_case_observability.py \
             tests/test_database.py

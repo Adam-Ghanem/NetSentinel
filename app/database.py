@@ -100,6 +100,18 @@ class CaseAuditEventModel(Base):
     created_at = Column(DateTime, default=_utcnow_naive, nullable=False, index=True)
 
 
+class CaseEvidenceModel(Base):
+    __tablename__ = "case_evidence"
+    id = Column(Integer, primary_key=True)
+    evidence_id = Column(String, unique=True, nullable=False)
+    case_id = Column(String, ForeignKey("cases.case_id"), nullable=False, index=True)
+    evidence_type = Column(String(64), nullable=False, index=True)
+    reference = Column(String(2048), nullable=False)
+    sha256 = Column(String(64), nullable=True, index=True)
+    added_by = Column(String(128), nullable=False, index=True)
+    created_at = Column(DateTime, default=_utcnow_naive, nullable=False, index=True)
+
+
 class UserModel(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
@@ -326,6 +338,23 @@ class DatabaseManager:
             case.updated_at = _utcnow_naive()
             session.add(CaseAuditEventModel(**event_data))
         return case
+
+    def insert_case_evidence(self, evidence_data):
+        with self.transaction() as session:
+            evidence = CaseEvidenceModel(**evidence_data)
+            session.add(evidence)
+        return evidence
+
+    def get_case_evidence(self, case_id, limit=500):
+        limit = self._validate_limit(limit)
+        with self.Session() as session:
+            return (
+                session.query(CaseEvidenceModel)
+                .filter_by(case_id=case_id)
+                .order_by(CaseEvidenceModel.created_at.asc(), CaseEvidenceModel.id.asc())
+                .limit(limit)
+                .all()
+            )
 
     def get_case_history(self, case_id, limit=500):
         limit = self._validate_limit(limit)

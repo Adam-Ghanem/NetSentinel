@@ -1,3 +1,4 @@
+import re
 import uuid
 
 
@@ -8,6 +9,7 @@ _MAX_OWNER_LENGTH = 128
 _MAX_ACTOR_LENGTH = 128
 _MAX_EVIDENCE_TYPE_LENGTH = 64
 _MAX_EVIDENCE_REFERENCE_LENGTH = 2048
+_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
 class CaseManager:
@@ -145,13 +147,19 @@ class CaseManager:
                 f"reference must be at most {_MAX_EVIDENCE_REFERENCE_LENGTH} characters"
             )
 
+        normalized_sha256 = None
+        if sha256 is not None:
+            normalized_sha256 = str(sha256).strip().lower()
+            if not _SHA256_PATTERN.fullmatch(normalized_sha256):
+                raise ValueError("sha256 must be exactly 64 hexadecimal characters")
+
         actor_value = self._validate_actor(actor)
         evidence_data = {
             "evidence_id": str(uuid.uuid4()),
             "case_id": case_id,
             "evidence_type": normalized_type,
             "reference": normalized_reference,
-            "sha256": sha256,
+            "sha256": normalized_sha256,
             "added_by": actor_value,
         }
         return self.db.insert_case_evidence(evidence_data)

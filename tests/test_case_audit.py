@@ -108,6 +108,60 @@ def test_audit_history_is_oldest_first(database, stored_alert):
     ]
 
 
+def test_repeating_same_owner_does_not_add_audit_noise(database, stored_alert):
+    manager = CaseManager(database)
+    case = manager.create_case_from_alert(
+        {"alert_id": stored_alert.alert_id, "severity": stored_alert.severity},
+        "No-op owner",
+        actor="analyst.alice",
+    )
+    manager.assign_owner(case.case_id, "analyst.bob", actor="analyst.alice")
+
+    manager.assign_owner(case.case_id, "analyst.bob", actor="analyst.alice")
+
+    assert [event.event_type for event in manager.get_case_history(case.case_id)] == [
+        "case.created",
+        "case.owner_changed",
+    ]
+
+
+def test_repeating_same_status_does_not_add_audit_noise(database, stored_alert):
+    manager = CaseManager(database)
+    case = manager.create_case_from_alert(
+        {"alert_id": stored_alert.alert_id, "severity": stored_alert.severity},
+        "No-op status",
+        actor="analyst.alice",
+    )
+
+    manager.update_case_status(case.case_id, "Open", actor="analyst.alice")
+
+    assert [event.event_type for event in manager.get_case_history(case.case_id)] == [
+        "case.created"
+    ]
+
+
+def test_case_history_honors_requested_limit(database, stored_alert):
+    manager = CaseManager(database)
+    case = manager.create_case_from_alert(
+        {"alert_id": stored_alert.alert_id, "severity": stored_alert.severity},
+        "Bounded history",
+        actor="analyst.alice",
+    )
+    manager.assign_owner(case.case_id, "analyst.bob", actor="analyst.alice")
+    manager.update_case_status(case.case_id, "In Progress", actor="analyst.bob")
+
+    events = manager.get_case_history(case.case_id, limit=2)
+
+    assert len(events) == 2
+
+
+def test_case_history_rejects_unbounded_limit(database):
+    manager = CaseManager(database)
+
+    with pytest.raises(ValueError, match="limit"):
+        manager.get_case_history("CASE-ANY", limit=10001)
+
+
 def test_audit_actor_is_required(database, stored_alert):
     manager = CaseManager(database)
 
@@ -116,4 +170,15 @@ def test_audit_actor_is_required(database, stored_alert):
             {"alert_id": stored_alert.alert_id, "severity": stored_alert.severity},
             "Missing actor",
             actor="   ",
+        )
+
+
+def test_audit_actor_is_bounded(database, stored_alert):
+    manager = CaseManager(database)
+
+    with pytest.raises(ValueError, match="actor"):
+        manager.create_case_from_alert(
+            {"alert_id": stored_alert.alert_id, "severity": stored_alert.severity},
+            "Oversized actor",
+            actor="a" * 129,
         )

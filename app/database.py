@@ -388,6 +388,7 @@ class DatabaseManager:
                 for status in _CASE_METRIC_STATUSES
             }
             audit_events = session.query(CaseAuditEventModel).count()
+            evidence_items = session.query(CaseEvidenceModel).count()
 
         return {
             "total_cases": total_cases,
@@ -395,6 +396,7 @@ class DatabaseManager:
             "unowned_cases": total_cases - owned_cases,
             "status_counts": status_counts,
             "audit_events": audit_events,
+            "evidence_items": evidence_items,
         }
 
     def get_all_cases(self):

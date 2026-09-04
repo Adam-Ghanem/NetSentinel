@@ -1,7 +1,7 @@
 import datetime
 from typing import Annotated
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Response, status
 from pydantic import BaseModel, ConfigDict
 
 from app.database import DatabaseManager
@@ -38,6 +38,17 @@ def create_app(database_url: str | None = None) -> FastAPI:
     @application.get("/health/live")
     def liveness():
         return {"status": "alive"}
+
+    @application.get("/health/ready")
+    def readiness(response: Response):
+        database_report = database.database_health()
+        ready = database_report["status"] == "healthy"
+        if not ready:
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {
+            "status": "ready" if ready else "not_ready",
+            "database": database_report,
+        }
 
     @application.get("/alerts", response_model=list[AlertSchema], deprecated=True)
     def get_alerts(limit: Annotated[int, Query(ge=1, le=1000)] = 100):

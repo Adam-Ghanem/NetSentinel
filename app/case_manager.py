@@ -131,14 +131,7 @@ class CaseManager:
         if case is None:
             return None
 
-        normalized_type = str(evidence_type or "").strip()
-        if not normalized_type:
-            raise ValueError("evidence_type must not be empty")
-        if len(normalized_type) > _MAX_EVIDENCE_TYPE_LENGTH:
-            raise ValueError(
-                f"evidence_type must be at most {_MAX_EVIDENCE_TYPE_LENGTH} characters"
-            )
-
+        normalized_type = self._validate_evidence_type(evidence_type)
         normalized_reference = str(reference or "").strip()
         if not normalized_reference:
             raise ValueError("reference must not be empty")
@@ -181,8 +174,17 @@ class CaseManager:
     def get_case_history(self, case_id, limit=500):
         return self.db.get_case_history(case_id, limit=limit)
 
-    def get_case_evidence(self, case_id, limit=500):
-        return self.db.get_case_evidence(case_id, limit=limit)
+    def get_case_evidence(self, case_id, limit=500, evidence_type=None):
+        normalized_type = (
+            self._validate_evidence_type(evidence_type)
+            if evidence_type is not None
+            else None
+        )
+        return self.db.get_case_evidence(
+            case_id,
+            limit=limit,
+            evidence_type=normalized_type,
+        )
 
     def get_all_cases(self):
         return self.db.get_all_cases()
@@ -201,6 +203,17 @@ class CaseManager:
             raise ValueError("actor must not be empty")
         if len(normalized) > _MAX_ACTOR_LENGTH:
             raise ValueError(f"actor must be at most {_MAX_ACTOR_LENGTH} characters")
+        return normalized
+
+    @staticmethod
+    def _validate_evidence_type(evidence_type):
+        normalized = str(evidence_type or "").strip()
+        if not normalized:
+            raise ValueError("evidence_type must not be empty")
+        if len(normalized) > _MAX_EVIDENCE_TYPE_LENGTH:
+            raise ValueError(
+                f"evidence_type must be at most {_MAX_EVIDENCE_TYPE_LENGTH} characters"
+            )
         return normalized
 
     @staticmethod

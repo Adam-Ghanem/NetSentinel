@@ -16,7 +16,7 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 7. **Stateful detection engine** — delivered foundation: bounded duplicate suppression, validated per-rule cooldowns, deterministic event expiry, explicit event/value cardinality limits, unique-destination-port scanning, per-service TCP SYN-flood evaluation, periodic TCP beaconing evaluation, immutable detector policies, and sanitized aggregate detector-pressure snapshots. Remaining work: measured policy tuning, additional stateful behaviors only where evidence justifies them, and a reviewed configuration/allowlisting boundary.
 8. **Detection engineering content** — in progress: scan, SYN-flood, and beaconing decisions now document severity, MITRE mappings, safety bounds, limitations, and false-positive guidance. Remaining work: realistic sample traffic and broader rule-authoring guidance.
 9. **Alert enrichment** — normalized IOC context, cache expiry, provider failure handling, confidence fields, and evidence provenance.
-10. **Incident workflow** — alert-to-case linking, status transitions, ownership, notes, evidence, and audit history.
+10. **Incident workflow** — delivered persistence foundation: transactional alert-to-case linking, direct case lookup, reviewed status transitions, immutable case/alert identity boundaries, and bounded append-only analyst-note behavior. Remaining work: ownership, immutable audit events, structured evidence, authorization, dashboard alert-to-case actions, and broader integration tests.
 
 ## P2 — API, Observability, and Performance
 
@@ -36,7 +36,7 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 ## Current Focus
 
-The current detection foundation now validates packet/rule boundaries, bounds duplicate suppression and sliding-window state, evaluates unique-port scans, TCP SYN floods, and periodic TCP beaconing, and exposes privacy-preserving process-local pressure metrics. The next highest-impact detection work is evidence-driven tuning and integration-quality traffic fixtures rather than adding more heuristics blindly.
+The current detection foundation now validates packet/rule boundaries, bounds duplicate suppression and sliding-window state, evaluates unique-port scans, TCP SYN floods, and periodic TCP beaconing, and exposes privacy-preserving process-local pressure metrics. The incident workflow now has a functioning persistence boundary; the next case-management work should add ownership and immutable audit history before richer dashboard actions are introduced.
 
 ## Contributor Quick Check
 

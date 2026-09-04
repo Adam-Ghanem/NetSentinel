@@ -6,6 +6,8 @@ _MAX_TITLE_LENGTH = 200
 _MAX_NOTE_LENGTH = 10_000
 _MAX_OWNER_LENGTH = 128
 _MAX_ACTOR_LENGTH = 128
+_MAX_EVIDENCE_TYPE_LENGTH = 64
+_MAX_EVIDENCE_REFERENCE_LENGTH = 2048
 
 
 class CaseManager:
@@ -115,11 +117,53 @@ class CaseManager:
             event_data,
         )
 
+    def add_evidence(
+        self,
+        case_id,
+        evidence_type,
+        reference,
+        actor="system",
+        sha256=None,
+    ):
+        case = self.db.get_case(case_id)
+        if case is None:
+            return None
+
+        normalized_type = str(evidence_type or "").strip()
+        if not normalized_type:
+            raise ValueError("evidence_type must not be empty")
+        if len(normalized_type) > _MAX_EVIDENCE_TYPE_LENGTH:
+            raise ValueError(
+                f"evidence_type must be at most {_MAX_EVIDENCE_TYPE_LENGTH} characters"
+            )
+
+        normalized_reference = str(reference or "").strip()
+        if not normalized_reference:
+            raise ValueError("reference must not be empty")
+        if len(normalized_reference) > _MAX_EVIDENCE_REFERENCE_LENGTH:
+            raise ValueError(
+                f"reference must be at most {_MAX_EVIDENCE_REFERENCE_LENGTH} characters"
+            )
+
+        actor_value = self._validate_actor(actor)
+        evidence_data = {
+            "evidence_id": str(uuid.uuid4()),
+            "case_id": case_id,
+            "evidence_type": normalized_type,
+            "reference": normalized_reference,
+            "sha256": sha256,
+            "added_by": actor_value,
+        }
+        return self.db.insert_case_evidence(evidence_data)
+
     def get_case(self, case_id):
         return self.db.get_case(case_id)
 
     def get_case_history(self, case_id, limit=500):
         return self.db.get_case_history(case_id, limit=limit)
+
+    def get_case_evidence(self, case_id, limit=500):
+        return self.db.get_case_evidence(case_id, limit=limit)
 
     def get_all_cases(self):
         return self.db.get_all_cases()

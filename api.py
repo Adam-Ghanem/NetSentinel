@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from app.database import DatabaseManager
 
 API_VERSION = "1.0.0"
+_SAMPLE_LIMIT = 1000
 
 
 class AlertSchema(BaseModel):
@@ -20,6 +21,13 @@ class AlertSchema(BaseModel):
     severity: str
     description: str | None = None
     mitre_attack: str | None = None
+
+
+class StatsSchema(BaseModel):
+    sampled_packets: int
+    sampled_alerts: int
+    sampled_critical_alerts: int
+    sample_limit: int
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
@@ -61,18 +69,25 @@ def create_app(database_url: str | None = None) -> FastAPI:
     def get_legacy_alerts(limit: Annotated[int, Query(ge=1, le=1000)] = 100):
         return read_alerts(limit)
 
-    @application.get("/stats")
-    def get_system_stats():
-        packets = database.get_packets(limit=1000)
-        alerts = database.get_alerts(limit=1000)
+    def read_stats():
+        packets = database.get_packets(limit=_SAMPLE_LIMIT)
+        alerts = database.get_alerts(limit=_SAMPLE_LIMIT)
         return {
             "sampled_packets": len(packets),
             "sampled_alerts": len(alerts),
             "sampled_critical_alerts": sum(
                 alert.severity == "Critical" for alert in alerts
             ),
-            "sample_limit": 1000,
+            "sample_limit": _SAMPLE_LIMIT,
         }
+
+    @application.get("/api/v1/stats", response_model=StatsSchema)
+    def get_versioned_stats():
+        return read_stats()
+
+    @application.get("/stats", response_model=StatsSchema, deprecated=True)
+    def get_legacy_stats():
+        return read_stats()
 
     return application
 

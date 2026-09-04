@@ -21,6 +21,8 @@ from app.config import Config
 
 Base = declarative_base()
 
+_CASE_UPDATE_FIELDS = frozenset({"title", "analyst_notes", "status", "severity", "tags"})
+
 
 def _utcnow_naive():
     """Return UTC as a naive datetime for the existing database storage contract."""
@@ -249,9 +251,34 @@ class DatabaseManager:
                 .all()
             )
 
+    def insert_case(self, case_data):
+        with self.transaction() as session:
+            case = CaseModel(**case_data)
+            session.add(case)
+        return case
+
+    def get_case(self, case_id):
+        with self.Session() as session:
+            return session.query(CaseModel).filter_by(case_id=case_id).first()
+
+    def update_case(self, case_id, updates):
+        unsupported = sorted(set(updates) - _CASE_UPDATE_FIELDS)
+        if unsupported:
+            fields = ", ".join(unsupported)
+            raise ValueError(f"unsupported case update fields: {fields}")
+
+        with self.transaction() as session:
+            case = session.query(CaseModel).filter_by(case_id=case_id).first()
+            if case is None:
+                return None
+            for field, value in updates.items():
+                setattr(case, field, value)
+            case.updated_at = _utcnow_naive()
+        return case
+
     def get_all_cases(self):
         with self.Session() as session:
-            return session.query(CaseModel).all()
+            return session.query(CaseModel).order_by(CaseModel.updated_at.desc()).all()
 
     def create_user(self, username, password, role="Analyst"):
         username = username.strip()

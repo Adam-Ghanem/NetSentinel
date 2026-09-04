@@ -1,47 +1,68 @@
-from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
-from typing import List, Optional
 import datetime
-from app.database import DatabaseManager
-from app.config import Config
+from typing import Annotated
 
-app = FastAPI(title="NetSentinel Elite API", version="2.0.0")
-db = DatabaseManager()
+from fastapi import FastAPI, Query
+from pydantic import BaseModel, ConfigDict
+
+from app.database import DatabaseManager
+
+API_VERSION = "1.0.0"
+
 
 class AlertSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     alert_id: str
-    timestamp: datetime.datetime
-    source_ip: str
-    dest_ip: str
+    timestamp: datetime.datetime | None = None
+    source_ip: str | None = None
+    dest_ip: str | None = None
     alert_type: str
     severity: str
-    description: str
-    mitre_attack: Optional[str]
+    description: str | None = None
+    mitre_attack: str | None = None
 
-@app.get("/")
-def read_root():
-    return {"status": "operational", "version": "2.0.0", "engine": "NetSentinel Elite"}
 
-@app.get("/alerts", response_model=List[AlertSchema])
-def get_alerts(limit: int = 100):
-    alerts = db.get_alerts(limit=limit)
-    return alerts
+def create_app(database_url: str | None = None) -> FastAPI:
+    application = FastAPI(title="NetSentinel API", version=API_VERSION)
+    database = DatabaseManager(database_url) if database_url else DatabaseManager()
+    application.state.database = database
 
-@app.get("/stats")
-def get_system_stats():
-    packets = db.get_packets(limit=1000)
-    alerts = db.get_alerts(limit=1000)
-    return {
-        "total_packets_processed": len(packets),
-        "total_alerts_generated": len(alerts),
-        "critical_alerts": len([a for a in alerts if a.severity == "Critical"])
-    }
+    @application.get("/")
+    def read_root():
+        return {
+            "status": "operational",
+            "service": "NetSentinel API",
+            "version": API_VERSION,
+        }
 
-@app.post("/soar/block/{ip}")
-def block_ip(ip: str):
-    # This would call the SOAR manager
-    return {"message": f"Block request for {ip} received and queued."}
+    @application.get("/health/live")
+    def liveness():
+        return {"status": "alive"}
+
+    @application.get("/alerts", response_model=list[AlertSchema], deprecated=True)
+    def get_alerts(limit: Annotated[int, Query(ge=1, le=1000)] = 100):
+        return database.get_alerts(limit=limit)
+
+    @application.get("/stats")
+    def get_system_stats():
+        packets = database.get_packets(limit=1000)
+        alerts = database.get_alerts(limit=1000)
+        return {
+            "sampled_packets": len(packets),
+            "sampled_alerts": len(alerts),
+            "sampled_critical_alerts": sum(
+                alert.severity == "Critical" for alert in alerts
+            ),
+            "sample_limit": 1000,
+        }
+
+    return application
+
+
+app = create_app()
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

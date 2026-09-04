@@ -21,7 +21,9 @@ from app.config import Config
 
 Base = declarative_base()
 
-_CASE_UPDATE_FIELDS = frozenset({"title", "analyst_notes", "status", "severity", "tags"})
+_CASE_UPDATE_FIELDS = frozenset(
+    {"title", "analyst_notes", "status", "severity", "tags", "owner"}
+)
 
 
 def _utcnow_naive():
@@ -75,6 +77,7 @@ class CaseModel(Base):
     status = Column(String, default="Open", index=True)
     severity = Column(String, index=True)
     tags = Column(String)
+    owner = Column(String(128), nullable=True, index=True)
     created_at = Column(DateTime, default=_utcnow_naive)
     updated_at = Column(
         DateTime,
@@ -154,6 +157,16 @@ class DatabaseManager:
                     connection.execute(
                         text(f"ALTER TABLE packets ADD COLUMN {column_name} {column_type}")
                     )
+
+            existing_case_columns = {
+                row[1]
+                for row in connection.execute(text("PRAGMA table_info(cases)"))
+            }
+            if "owner" not in existing_case_columns:
+                connection.execute(text("ALTER TABLE cases ADD COLUMN owner VARCHAR(128)"))
+                connection.execute(
+                    text("CREATE INDEX IF NOT EXISTS ix_cases_owner ON cases (owner)")
+                )
 
     @contextmanager
     def transaction(self):

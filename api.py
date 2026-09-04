@@ -50,9 +50,16 @@ def create_app(database_url: str | None = None) -> FastAPI:
             "database": database_report,
         }
 
-    @application.get("/alerts", response_model=list[AlertSchema], deprecated=True)
-    def get_alerts(limit: Annotated[int, Query(ge=1, le=1000)] = 100):
+    def read_alerts(limit: int):
         return database.get_alerts(limit=limit)
+
+    @application.get("/api/v1/alerts", response_model=list[AlertSchema])
+    def get_versioned_alerts(limit: Annotated[int, Query(ge=1, le=1000)] = 100):
+        return read_alerts(limit)
+
+    @application.get("/alerts", response_model=list[AlertSchema], deprecated=True)
+    def get_legacy_alerts(limit: Annotated[int, Query(ge=1, le=1000)] = 100):
+        return read_alerts(limit)
 
     @application.get("/stats")
     def get_system_stats():

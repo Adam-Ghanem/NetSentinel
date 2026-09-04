@@ -58,6 +58,8 @@ class CaseManager:
         case = self.db.get_case(case_id)
         if case is None:
             return None
+        if case.status == status:
+            return case
         event_data = self._event(
             case_id,
             "case.status_changed",
@@ -79,6 +81,8 @@ class CaseManager:
                 normalized_owner = None
             elif len(normalized_owner) > _MAX_OWNER_LENGTH:
                 raise ValueError(f"owner must be at most {_MAX_OWNER_LENGTH} characters")
+        if case.owner == normalized_owner:
+            return case
         event_data = self._event(
             case_id,
             "case.owner_changed",

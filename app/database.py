@@ -21,7 +21,10 @@ from app.config import Config
 
 Base = declarative_base()
 
-_CASE_UPDATE_FIELDS = frozenset({"title", "analyst_notes", "status", "severity", "tags"})
+_CASE_UPDATE_FIELDS = frozenset(
+    {"title", "analyst_notes", "status", "severity", "tags", "owner"}
+)
+_CASE_METRIC_STATUSES = ("Closed", "In Progress", "Open", "Resolved")
 
 
 def _utcnow_naive():
@@ -75,6 +78,7 @@ class CaseModel(Base):
     status = Column(String, default="Open", index=True)
     severity = Column(String, index=True)
     tags = Column(String)
+    owner = Column(String(128), nullable=True, index=True)
     created_at = Column(DateTime, default=_utcnow_naive)
     updated_at = Column(
         DateTime,
@@ -82,6 +86,18 @@ class CaseModel(Base):
         onupdate=_utcnow_naive,
     )
     alert = relationship("AlertModel")
+
+
+class CaseAuditEventModel(Base):
+    __tablename__ = "case_audit_events"
+    id = Column(Integer, primary_key=True)
+    event_id = Column(String, unique=True, nullable=False)
+    case_id = Column(String, ForeignKey("cases.case_id"), nullable=False, index=True)
+    event_type = Column(String(64), nullable=False, index=True)
+    actor = Column(String(128), nullable=False, index=True)
+    previous_value = Column(String(512), nullable=False, default="")
+    new_value = Column(String(512), nullable=False, default="")
+    created_at = Column(DateTime, default=_utcnow_naive, nullable=False, index=True)
 
 
 class UserModel(Base):
@@ -154,6 +170,16 @@ class DatabaseManager:
                     connection.execute(
                         text(f"ALTER TABLE packets ADD COLUMN {column_name} {column_type}")
                     )
+
+            existing_case_columns = {
+                row[1]
+                for row in connection.execute(text("PRAGMA table_info(cases)"))
+            }
+            if "owner" not in existing_case_columns:
+                connection.execute(text("ALTER TABLE cases ADD COLUMN owner VARCHAR(128)"))
+                connection.execute(
+                    text("CREATE INDEX IF NOT EXISTS ix_cases_owner ON cases (owner)")
+                )
 
     @contextmanager
     def transaction(self):
@@ -257,6 +283,15 @@ class DatabaseManager:
             session.add(case)
         return case
 
+    def insert_case_with_event(self, case_data, event_data):
+        with self.transaction() as session:
+            case = CaseModel(**case_data)
+            session.add(case)
+            session.flush()
+            event_model = CaseAuditEventModel(**event_data)
+            session.add(event_model)
+        return case
+
     def get_case(self, case_id):
         with self.Session() as session:
             return session.query(CaseModel).filter_by(case_id=case_id).first()
@@ -275,6 +310,52 @@ class DatabaseManager:
                 setattr(case, field, value)
             case.updated_at = _utcnow_naive()
         return case
+
+    def update_case_with_event(self, case_id, updates, event_data):
+        unsupported = sorted(set(updates) - _CASE_UPDATE_FIELDS)
+        if unsupported:
+            fields = ", ".join(unsupported)
+            raise ValueError(f"unsupported case update fields: {fields}")
+
+        with self.transaction() as session:
+            case = session.query(CaseModel).filter_by(case_id=case_id).first()
+            if case is None:
+                return None
+            for field, value in updates.items():
+                setattr(case, field, value)
+            case.updated_at = _utcnow_naive()
+            session.add(CaseAuditEventModel(**event_data))
+        return case
+
+    def get_case_history(self, case_id, limit=500):
+        limit = self._validate_limit(limit)
+        with self.Session() as session:
+            return (
+                session.query(CaseAuditEventModel)
+                .filter_by(case_id=case_id)
+                .order_by(CaseAuditEventModel.created_at.asc(), CaseAuditEventModel.id.asc())
+                .limit(limit)
+                .all()
+            )
+
+    def case_workflow_metrics(self):
+        """Return aggregate-only case workflow counts without analyst or evidence values."""
+        with self.Session() as session:
+            total_cases = session.query(CaseModel).count()
+            owned_cases = session.query(CaseModel).filter(CaseModel.owner.is_not(None)).count()
+            status_counts = {
+                status: session.query(CaseModel).filter_by(status=status).count()
+                for status in _CASE_METRIC_STATUSES
+            }
+            audit_events = session.query(CaseAuditEventModel).count()
+
+        return {
+            "total_cases": total_cases,
+            "owned_cases": owned_cases,
+            "unowned_cases": total_cases - owned_cases,
+            "status_counts": status_counts,
+            "audit_events": audit_events,
+        }
 
     def get_all_cases(self):
         with self.Session() as session:

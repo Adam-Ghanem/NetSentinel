@@ -25,7 +25,13 @@ def test_manager_can_connect_without_creating_schema(tmp_path):
     report = manager.database_health()
     assert report["status"] == "degraded"
     assert report["schema"] == "incomplete"
-    assert sorted(report["missing_tables"]) == ["alerts", "cases", "packets", "users"]
+    assert sorted(report["missing_tables"]) == [
+        "alerts",
+        "case_audit_events",
+        "cases",
+        "packets",
+        "users",
+    ]
 
 
 def test_explicit_bootstrap_creates_local_schema(tmp_path):
@@ -36,6 +42,7 @@ def test_explicit_bootstrap_creates_local_schema(tmp_path):
 
     assert set(inspect(manager.engine).get_table_names()) == {
         "alerts",
+        "case_audit_events",
         "cases",
         "packets",
         "users",
@@ -182,13 +189,13 @@ def test_database_health_reports_healthy_sqlite(database):
 
 def test_database_health_reports_missing_tables(database):
     with database.engine.begin() as connection:
-        connection.execute(text("DROP TABLE cases"))
+        connection.execute(text("DROP TABLE case_audit_events"))
 
     report = database.database_health()
 
     assert report["status"] == "degraded"
     assert report["schema"] == "incomplete"
-    assert report["missing_tables"] == ["cases"]
+    assert report["missing_tables"] == ["case_audit_events"]
     assert report["connectivity"] == "ok"
 
 

@@ -16,3 +16,5 @@ networkx==3.4.2
 pyvis==0.3.2
 scikit-learn==1.7.0
 Pillow==12.3.0
+fastapi==0.141.1
+uvicorn==0.52.4

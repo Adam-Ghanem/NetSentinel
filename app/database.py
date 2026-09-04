@@ -24,6 +24,7 @@ Base = declarative_base()
 _CASE_UPDATE_FIELDS = frozenset(
     {"title", "analyst_notes", "status", "severity", "tags", "owner"}
 )
+_CASE_METRIC_STATUSES = ("Closed", "In Progress", "Open", "Resolved")
 
 
 def _utcnow_naive():
@@ -336,6 +337,25 @@ class DatabaseManager:
                 .limit(limit)
                 .all()
             )
+
+    def case_workflow_metrics(self):
+        """Return aggregate-only case workflow counts without analyst or evidence values."""
+        with self.Session() as session:
+            total_cases = session.query(CaseModel).count()
+            owned_cases = session.query(CaseModel).filter(CaseModel.owner.is_not(None)).count()
+            status_counts = {
+                status: session.query(CaseModel).filter_by(status=status).count()
+                for status in _CASE_METRIC_STATUSES
+            }
+            audit_events = session.query(CaseAuditEventModel).count()
+
+        return {
+            "total_cases": total_cases,
+            "owned_cases": owned_cases,
+            "unowned_cases": total_cases - owned_cases,
+            "status_counts": status_counts,
+            "audit_events": audit_events,
+        }
 
     def get_all_cases(self):
         with self.Session() as session:

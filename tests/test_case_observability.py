@@ -33,6 +33,12 @@ def test_case_workflow_metrics_are_aggregate_only(tmp_path):
     )
     manager.assign_owner(first.case_id, "analyst.alice", actor="analyst.alice")
     manager.update_case_status(first.case_id, "In Progress", actor="analyst.alice")
+    manager.add_evidence(
+        first.case_id,
+        evidence_type="packet_capture",
+        reference="captures/private-incident.pcapng",
+        actor="analyst.alice",
+    )
     manager.create_case_from_alert(
         {"alert_id": alert_two.alert_id, "severity": alert_two.severity},
         "Second case",
@@ -51,11 +57,13 @@ def test_case_workflow_metrics_are_aggregate_only(tmp_path):
             "Open": 1,
             "Resolved": 0,
         },
-        "audit_events": 4,
+        "audit_events": 5,
+        "evidence_items": 1,
     }
     serialized = repr(snapshot)
     assert "analyst.alice" not in serialized
     assert "ALERT-METRICS" not in serialized
+    assert "private-incident" not in serialized
 
 
 def test_case_workflow_metrics_are_zero_safe(tmp_path):
@@ -72,4 +80,5 @@ def test_case_workflow_metrics_are_zero_safe(tmp_path):
             "Resolved": 0,
         },
         "audit_events": 0,
+        "evidence_items": 0,
     }

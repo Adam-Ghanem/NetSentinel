@@ -20,27 +20,35 @@ class RulesEngine:
 
     def __init__(self, rules_dir: str | Path = "rules") -> None:
         self.rules_dir = Path(rules_dir)
+        self._files_seen = 0
+        self._load_errors = 0
+        self._invalid_rules = 0
         self.rules = self._load_rules()
 
     def _load_rules(self) -> list[DetectionRule]:
         rules: list[DetectionRule] = []
         self.rules_dir.mkdir(parents=True, exist_ok=True)
+        rule_files = sorted(self.rules_dir.glob("*.y*ml"))
+        self._files_seen = len(rule_files)
 
-        for filepath in sorted(self.rules_dir.glob("*.y*ml")):
+        for filepath in rule_files:
             try:
                 loaded = yaml.safe_load(filepath.read_text(encoding="utf-8"))
             except (OSError, yaml.YAMLError) as exc:
+                self._load_errors += 1
                 logger.error("Unable to load detection rule file %s: %s", filepath, exc)
                 continue
 
             candidates = loaded if isinstance(loaded, list) else [loaded]
             for index, candidate in enumerate(candidates, start=1):
                 if not isinstance(candidate, dict):
+                    self._invalid_rules += 1
                     logger.error("Skipping non-object rule %s[%d]", filepath, index)
                     continue
                 try:
                     rules.append(DetectionRule.model_validate(candidate))
                 except ValidationError as exc:
+                    self._invalid_rules += 1
                     logger.error(
                         "Skipping invalid detection rule %s[%d]: %s",
                         filepath,
@@ -50,6 +58,23 @@ class RulesEngine:
 
         logger.info("Loaded %d validated detection rules.", len(rules))
         return rules
+
+    def readiness_report(self) -> dict[str, str | int]:
+        """Return aggregate rule-loading health without exposing rule content."""
+
+        healthy = (
+            self._files_seen > 0
+            and bool(self.rules)
+            and self._load_errors == 0
+            and self._invalid_rules == 0
+        )
+        return {
+            "status": "healthy" if healthy else "unhealthy",
+            "files_seen": self._files_seen,
+            "rules_loaded": len(self.rules),
+            "load_errors": self._load_errors,
+            "invalid_rules": self._invalid_rules,
+        }
 
     def evaluate_rules(
         self,

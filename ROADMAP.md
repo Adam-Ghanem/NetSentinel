@@ -22,7 +22,7 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 11. **Service boundary/API quality** — separate collection, detection, persistence, and UI concerns; add versioned schemas and consistent errors.
 12. **Structured logging** — correlation IDs, safe field redaction, actionable event names, and configurable output.
-13. **Health and readiness checks** — extend the delivered database checks to rule loading, storage capacity, and optional provider status.
+13. **Health and readiness checks** — delivered foundation: database checks and fail-closed detection-rule loading health with privacy-preserving aggregate status. Remaining work: storage capacity and optional provider status.
 14. **Metrics** — delivered foundation: sanitized process-local suppression/stateful-detector pressure snapshots plus aggregate case-workflow counts. Remaining work: authenticated export, ingestion rate, parse failures, alert counts, rule latency, enrichment latency, and queue/backpressure signals.
 15. **Performance controls** — bounded queues, batch writes, indexes, profiling fixtures, and documented capacity limits.
 

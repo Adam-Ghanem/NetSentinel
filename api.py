@@ -5,6 +5,7 @@ from fastapi import FastAPI, Query, Response, status
 from pydantic import BaseModel, ConfigDict
 
 from app.database import DatabaseManager
+from app.rules_engine import RulesEngine
 
 API_VERSION = "1.0.0"
 _SAMPLE_LIMIT = 1000
@@ -33,6 +34,7 @@ class StatsSchema(BaseModel):
 def create_app(
     database_url: str | None = None,
     database_manager: DatabaseManager | None = None,
+    rules_engine: RulesEngine | None = None,
 ) -> FastAPI:
     if database_url is not None and database_manager is not None:
         raise ValueError("provide database_url or database_manager, not both")
@@ -41,7 +43,9 @@ def create_app(
     database = database_manager or (
         DatabaseManager(database_url) if database_url else DatabaseManager()
     )
+    rules = rules_engine or RulesEngine()
     application.state.database = database
+    application.state.rules_engine = rules
 
     @application.get("/")
     def read_root():
@@ -58,12 +62,17 @@ def create_app(
     @application.get("/health/ready")
     def readiness(response: Response):
         database_report = database.database_health()
-        ready = database_report["status"] == "healthy"
+        rules_report = rules.readiness_report()
+        ready = (
+            database_report["status"] == "healthy"
+            and rules_report["status"] == "healthy"
+        )
         if not ready:
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {
             "status": "ready" if ready else "not_ready",
             "database": database_report,
+            "rules": rules_report,
         }
 
     def read_alerts(limit: int):

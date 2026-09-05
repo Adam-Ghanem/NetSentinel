@@ -89,7 +89,7 @@ jobs:
           tests/test_case_evidence.py
 
       - name: Verify default database health
-        run: python scripts/check_database_health.py --database-url sqlite:///:memory:
+        run: 'python scripts/check_database_health.py --database-url sqlite:///:memory:'
 
       - name: Run database backup tests
         run: python -m pytest tests/test_database_backup.py

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "fix/**"]
   pull_request:
     branches: [main]
 
@@ -15,13 +15,13 @@ concurrency:
 
 jobs:
   core-quality:
-    name: Core quality (Python ${{ matrix.python-version }})
+    name: Core quality (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.12"]
+        python: ["3.10", "3.12"]
 
     steps:
       - name: Check out repository
@@ -32,7 +32,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -50,76 +50,75 @@ jobs:
         run: >-
           python -m ruff check
           app/alert_suppression.py app/beacon_detector.py app/beacon_policy.py
-          app/config.py app/contracts.py app/database.py app/detection_engine.py
-          app/detection_observability.py app/enrichment.py app/event_windows.py
-          app/legacy_adoption.py app/parser.py app/port_scan_detector.py
-          app/port_scan_policy.py app/report_generator.py app/rules_engine.py app/schema.py
-          app/syn_flood_detector.py app/syn_flood_policy.py
-          migrations/env.py migrations/versions/0001_baseline.py
+          app/case_evidence.py app/case_manager.py app/config.py app/contracts.py
+          app/database.py app/detection_engine.py app/detection_observability.py
+          app/enrichment.py app/event_windows.py app/legacy_adoption.py app/parser.py
+          app/port_scan_detector.py app/port_scan_policy.py app/report_generator.py
+          app/rules_engine.py app/schema.py app/syn_flood_detector.py
+          app/syn_flood_policy.py migrations/env.py
+          migrations/versions/0001_baseline.py
+          migrations/versions/0002_case_audit_ownership.py
+          migrations/versions/0003_case_structured_evidence.py
+          migrations/versions/0004_users_username_index.py
           scripts/backup_database.py scripts/check_database_health.py
           scripts/check_dependency_pins.py scripts/check_legacy_database.py
           scripts/check_migration_drift.py scripts/check_predeployment.py
           scripts/check_schema_version.py scripts/check_secrets.py scripts/run_migrations.py
           tests/test_alert_suppression.py tests/test_beacon_detector.py
-          tests/test_beacon_policy.py tests/test_config.py tests/test_container_config.py
-          tests/test_container_security_workflow.py tests/test_database.py
-          tests/test_database_backup.py tests/test_dependency_pins.py
-          tests/test_detection_contracts.py tests/test_detection_engine_contracts.py
-          tests/test_detection_observability.py tests/test_event_windows.py
-          tests/test_legacy_adoption.py tests/test_migration_drift.py
-          tests/test_migration_runner.py tests/test_migrations.py tests/test_parser.py
-          tests/test_port_scan_detector.py tests/test_port_scan_integration.py
-          tests/test_port_scan_policy.py tests/test_predeployment.py
-          tests/test_report_generator.py tests/test_rules_engine_contracts.py
-          tests/test_schema_version.py tests/test_secret_scanner.py
-          tests/test_stateful_detection_integration.py
+          tests/test_beacon_policy.py tests/test_case_audit.py tests/test_case_evidence.py
+          tests/test_case_observability.py tests/test_case_workflow.py tests/test_config.py
+          tests/test_container_config.py tests/test_container_security_workflow.py
+          tests/test_database.py tests/test_database_backup.py
+          tests/test_dependency_pins.py tests/test_detection_contracts.py
+          tests/test_detection_engine_contracts.py tests/test_detection_observability.py
+          tests/test_event_windows.py tests/test_legacy_adoption.py
+          tests/test_migration_drift.py tests/test_migration_runner.py
+          tests/test_migrations.py tests/test_parser.py tests/test_port_scan_detector.py
+          tests/test_port_scan_integration.py tests/test_port_scan_policy.py
+          tests/test_predeployment.py tests/test_report_generator.py
+          tests/test_rules_engine_contracts.py tests/test_schema_version.py
+          tests/test_secret_scanner.py tests/test_stateful_detection_integration.py
           tests/test_syn_flood_detector.py tests/test_syn_flood_policy.py
 
-      - name: Run database transaction and health tests
-        run: python -m pytest tests/test_database.py
+      - name: Run database and incident workflow tests
+        run: >-
+          python -m pytest
+          tests/test_database.py
+          tests/test_case_workflow.py
+          tests/test_case_audit.py
+          tests/test_case_observability.py
+          tests/test_case_evidence.py
 
       - name: Verify default database health
-        run: python scripts/check_database_health.py --database-url sqlite:///:memory:
+        run: 'python -m scripts.check_database_health --database-url sqlite:///:memory:'
 
       - name: Run database backup tests
         run: python -m pytest tests/test_database_backup.py
 
-      - name: Run schema version tests
-        run: python -m pytest tests/test_schema_version.py
-
-      - name: Run migration tests
-        run: python -m pytest tests/test_migrations.py
-
-      - name: Run verified migration runner tests
-        run: python -m pytest tests/test_migration_runner.py
-
-      - name: Run migration drift tests
-        run: python -m pytest tests/test_migration_drift.py
-
-      - name: Run legacy adoption tests
-        run: python -m pytest tests/test_legacy_adoption.py
-
-      - name: Run predeployment gate tests
-        run: python -m pytest tests/test_predeployment.py
+      - name: Run schema and migration tests
+        run: >-
+          python -m pytest
+          tests/test_schema_version.py
+          tests/test_migrations.py
+          tests/test_migration_runner.py
+          tests/test_migration_drift.py
+          tests/test_legacy_adoption.py
+          tests/test_predeployment.py
 
       - name: Verify deployment gate against migrated schema
         env:
           DATABASE_URL: sqlite:///${{ runner.temp }}/predeployment.db
         run: |
-          python scripts/run_migrations.py
-          python scripts/check_predeployment.py
+          python -m scripts.run_migrations
+          python -m scripts.check_predeployment
 
-      - name: Run configuration tests
-        run: python -m pytest tests/test_config.py
-
-      - name: Run container configuration tests
-        run: python -m pytest tests/test_container_config.py
-
-      - name: Run container security workflow tests
-        run: python -m pytest tests/test_container_security_workflow.py
-
-      - name: Run dependency policy tests
-        run: python -m pytest tests/test_dependency_pins.py
+      - name: Run configuration and container contract tests
+        run: >-
+          python -m pytest
+          tests/test_config.py
+          tests/test_container_config.py
+          tests/test_container_security_workflow.py
+          tests/test_dependency_pins.py
 
       - name: Run typed and stateful detection contract tests
         run: >-
@@ -139,14 +138,12 @@ jobs:
           tests/test_syn_flood_detector.py
           tests/test_syn_flood_policy.py
 
-      - name: Run parser tests
-        run: python -m pytest tests/test_parser.py
-
-      - name: Run PDF report tests
-        run: python -m pytest tests/test_report_generator.py
-
-      - name: Run secret scanner tests
-        run: python -m pytest tests/test_secret_scanner.py
+      - name: Run parser, report, and secret scanner tests
+        run: >-
+          python -m pytest
+          tests/test_parser.py
+          tests/test_report_generator.py
+          tests/test_secret_scanner.py
 
       - name: Scan repository for committed secrets
         run: python scripts/check_secrets.py .
@@ -174,14 +171,18 @@ jobs:
           .
 
       - name: Verify non-root image user
-        run: test "$(docker image inspect netsentinel:ci --format '{{.Config.User}}')" = "netsentinel:netsentinel"
+        run: |
+          image_user="$(docker image inspect netsentinel:ci --format '{{.Config.User}}')"
+          test "$image_user" = "netsentinel:netsentinel"
 
       - name: Verify image healthcheck
-        run: test "$(docker image inspect netsentinel:ci --format '{{json .Config.Healthcheck}}')" != "null"
+        run: |
+          healthcheck="$(docker image inspect netsentinel:ci --format '{{json .Config.Healthcheck}}')"
+          test "$healthcheck" != "null"
 
       - name: Run migration job against isolated volume
         env:
           NETSENTINEL_IMAGE_TAG: ci
         run: |
-          docker compose --profile operations run --rm --no-build migrate
-          docker compose --profile operations run --rm --no-build migrate
+          docker compose --profile operations run --rm migrate
+          docker compose --profile operations run --rm migrate

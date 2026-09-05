@@ -17,9 +17,11 @@ def check_schema_version(database_url):
         recorded_version = None
         if SCHEMA_VERSION_TABLE in tables:
             with engine.connect() as connection:
-                recorded_version = connection.execute(
-                    text(f"SELECT version FROM {SCHEMA_VERSION_TABLE} ORDER BY version DESC LIMIT 1")
-                ).scalar_one_or_none()
+                query = text(
+                    f"SELECT version FROM {SCHEMA_VERSION_TABLE} "
+                    "ORDER BY version DESC LIMIT 1"
+                )
+                recorded_version = connection.execute(query).scalar_one_or_none()
         status = schema_compatibility(recorded_version)
         return {
             "status": status,

@@ -5,21 +5,25 @@ on:
     branches: [main]
     paths:
       - "app/case_manager.py"
+      - "app/case_evidence.py"
       - "app/database.py"
       - "migrations/versions/*.py"
       - "tests/test_case_workflow.py"
       - "tests/test_case_audit.py"
       - "tests/test_case_observability.py"
+      - "tests/test_case_evidence.py"
       - ".github/workflows/case-contracts.yml"
   push:
     branches: [main]
     paths:
       - "app/case_manager.py"
+      - "app/case_evidence.py"
       - "app/database.py"
       - "migrations/versions/*.py"
       - "tests/test_case_workflow.py"
       - "tests/test_case_audit.py"
       - "tests/test_case_observability.py"
+      - "tests/test_case_evidence.py"
       - ".github/workflows/case-contracts.yml"
 
 permissions:
@@ -63,11 +67,14 @@ jobs:
         run: |
           python -m ruff check \
             app/case_manager.py \
+            app/case_evidence.py \
             app/database.py \
             migrations/versions/0002_case_audit_ownership.py \
+            migrations/versions/0003_case_structured_evidence.py \
             tests/test_case_workflow.py \
             tests/test_case_audit.py \
-            tests/test_case_observability.py
+            tests/test_case_observability.py \
+            tests/test_case_evidence.py
 
       - name: Run case workflow contracts
         run: |
@@ -75,4 +82,5 @@ jobs:
             tests/test_case_workflow.py \
             tests/test_case_audit.py \
             tests/test_case_observability.py \
+            tests/test_case_evidence.py \
             tests/test_database.py

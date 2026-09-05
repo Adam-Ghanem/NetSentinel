@@ -28,6 +28,7 @@ def test_manager_can_connect_without_creating_schema(tmp_path):
     assert sorted(report["missing_tables"]) == [
         "alerts",
         "case_audit_events",
+        "case_evidence",
         "cases",
         "packets",
         "users",
@@ -43,6 +44,7 @@ def test_explicit_bootstrap_creates_local_schema(tmp_path):
     assert set(inspect(manager.engine).get_table_names()) == {
         "alerts",
         "case_audit_events",
+        "case_evidence",
         "cases",
         "packets",
         "users",

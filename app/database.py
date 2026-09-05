@@ -100,6 +100,19 @@ class CaseAuditEventModel(Base):
     created_at = Column(DateTime, default=_utcnow_naive, nullable=False, index=True)
 
 
+class CaseEvidenceModel(Base):
+    __tablename__ = "case_evidence"
+    id = Column(Integer, primary_key=True)
+    evidence_id = Column(String, unique=True, nullable=False)
+    case_id = Column(String, ForeignKey("cases.case_id"), nullable=False, index=True)
+    evidence_type = Column(String(64), nullable=False, index=True)
+    source = Column(String(256), nullable=False)
+    reference = Column(String(512), nullable=False)
+    summary = Column(Text, nullable=False, default="")
+    added_by = Column(String(128), nullable=False, index=True)
+    created_at = Column(DateTime, default=_utcnow_naive, nullable=False, index=True)
+
+
 class UserModel(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)

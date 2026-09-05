@@ -2,6 +2,7 @@ import json
 import subprocess
 
 from scripts.check_migration_drift import check_migration_drift, main
+from scripts.run_migrations import run_migrations
 
 
 def completed(returncode, stdout="", stderr=""):
@@ -55,6 +56,17 @@ def test_unexpected_failure_is_sanitized(monkeypatch):
     assert report.status == "unhealthy"
     assert "secret" not in report.detail
     assert "postgresql" not in report.detail
+
+
+def test_migrated_schema_matches_application_metadata(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'drift.db'}"
+    migration = run_migrations(database_url)
+
+    report = check_migration_drift(database_url)
+
+    assert migration.ready is True
+    assert report.status == "current"
+    assert report.drift_detected is False
 
 
 def test_cli_emits_json_and_fails_closed(monkeypatch, capsys):

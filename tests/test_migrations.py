@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, inspect, text
 from app.database import Base
 from app.schema import CURRENT_SCHEMA_VERSION
 
-ALEMBIC_HEAD = "0003_case_structured_evidence"
+ALEMBIC_HEAD = "0004_users_username_index"
 
 
 def run_alembic(database_url, *arguments):

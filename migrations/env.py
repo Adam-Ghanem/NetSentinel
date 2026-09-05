@@ -7,6 +7,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import Config
 from app.database import Base
+from app.schema import SCHEMA_VERSION_TABLE
 
 config = context.config
 database_url = config.attributes.get("database_url", Config.DATABASE_URL)
@@ -18,6 +19,11 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def include_object(_object, name, type_, _reflected, _compare_to):
+    """Exclude migration-owned bookkeeping from application model drift checks."""
+    return not (type_ == "table" and name == SCHEMA_VERSION_TABLE)
+
+
 def run_migrations_offline():
     """Run migrations without opening a database connection."""
     context.configure(
@@ -26,6 +32,7 @@ def run_migrations_offline():
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -46,6 +53,7 @@ def run_migrations_online():
             target_metadata=target_metadata,
             compare_type=True,
             render_as_batch=connection.dialect.name == "sqlite",
+            include_object=include_object,
         )
 
         with context.begin_transaction():

@@ -59,6 +59,7 @@ jobs:
           migrations/versions/0001_baseline.py
           migrations/versions/0002_case_audit_ownership.py
           migrations/versions/0003_case_structured_evidence.py
+          migrations/versions/0004_users_username_index.py
           scripts/backup_database.py scripts/check_database_health.py
           scripts/check_dependency_pins.py scripts/check_legacy_database.py
           scripts/check_migration_drift.py scripts/check_predeployment.py

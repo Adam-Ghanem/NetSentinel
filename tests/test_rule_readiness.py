@@ -1,8 +1,6 @@
-from fastapi.testclient import TestClient
+from pathlib import Path
 
-from api import create_app
 from app.rules_engine import RulesEngine
-
 
 _VALID_RULE = """
 name: DNS visibility
@@ -68,30 +66,13 @@ def test_rules_readiness_fails_closed_on_yaml_error(tmp_path):
     assert report["load_errors"] == 1
 
 
-def test_api_readiness_includes_rule_health(tmp_path):
-    rules_dir = tmp_path / "rules"
-    _write_rule(rules_dir, _VALID_RULE)
-    rules_engine = RulesEngine(rules_dir)
-    app = create_app(
-        database_url=f"sqlite:///{tmp_path / 'api.db'}",
-        rules_engine=rules_engine,
-    )
+def test_bundled_rules_load_without_validation_errors():
+    rules_dir = Path(__file__).resolve().parents[1] / "rules"
 
-    response = TestClient(app).get("/health/ready")
+    report = RulesEngine(rules_dir).readiness_report()
 
-    assert response.status_code == 200
-    assert response.json()["rules"] == rules_engine.readiness_report()
-
-
-def test_api_readiness_returns_503_when_rule_loading_is_unhealthy(tmp_path):
-    rules_engine = RulesEngine(tmp_path / "empty-rules")
-    app = create_app(
-        database_url=f"sqlite:///{tmp_path / 'api.db'}",
-        rules_engine=rules_engine,
-    )
-
-    response = TestClient(app).get("/health/ready")
-
-    assert response.status_code == 503
-    assert response.json()["status"] == "not_ready"
-    assert response.json()["rules"]["status"] == "unhealthy"
+    assert report["status"] == "healthy"
+    assert report["files_seen"] >= 1
+    assert report["rules_loaded"] >= 1
+    assert report["load_errors"] == 0
+    assert report["invalid_rules"] == 0

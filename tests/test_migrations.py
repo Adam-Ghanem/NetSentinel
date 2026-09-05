@@ -7,6 +7,8 @@ from sqlalchemy import create_engine, inspect, text
 from app.database import Base
 from app.schema import CURRENT_SCHEMA_VERSION
 
+ALEMBIC_HEAD = "0003_case_structured_evidence"
+
 
 def run_alembic(database_url, *arguments):
     env = os.environ.copy()
@@ -20,7 +22,7 @@ def run_alembic(database_url, *arguments):
     )
 
 
-def test_baseline_upgrade_creates_expected_schema(tmp_path):
+def test_upgrade_to_head_creates_expected_schema(tmp_path):
     database_url = f"sqlite:///{tmp_path / 'migration.db'}"
 
     result = run_alembic(database_url, "upgrade", "head")
@@ -40,10 +42,10 @@ def test_baseline_upgrade_creates_expected_schema(tmp_path):
     engine.dispose()
 
     assert schema_version == CURRENT_SCHEMA_VERSION
-    assert alembic_version == "0001_baseline"
+    assert alembic_version == ALEMBIC_HEAD
 
 
-def test_baseline_upgrade_is_idempotent(tmp_path):
+def test_upgrade_to_head_is_idempotent(tmp_path):
     database_url = f"sqlite:///{tmp_path / 'idempotent.db'}"
 
     first = run_alembic(database_url, "upgrade", "head")
@@ -53,7 +55,7 @@ def test_baseline_upgrade_is_idempotent(tmp_path):
     assert second.returncode == 0, second.stderr
 
 
-def test_destructive_baseline_downgrade_is_blocked(tmp_path):
+def test_destructive_downgrade_is_blocked(tmp_path):
     database_url = f"sqlite:///{tmp_path / 'downgrade.db'}"
     assert run_alembic(database_url, "upgrade", "head").returncode == 0
 

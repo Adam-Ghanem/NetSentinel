@@ -10,6 +10,7 @@ on:
       - "tests/test_case_workflow.py"
       - "tests/test_case_audit.py"
       - "tests/test_case_observability.py"
+      - "tests/test_case_evidence.py"
       - ".github/workflows/case-contracts.yml"
   push:
     branches: [main]
@@ -20,6 +21,7 @@ on:
       - "tests/test_case_workflow.py"
       - "tests/test_case_audit.py"
       - "tests/test_case_observability.py"
+      - "tests/test_case_evidence.py"
       - ".github/workflows/case-contracts.yml"
 
 permissions:
@@ -65,9 +67,11 @@ jobs:
             app/case_manager.py \
             app/database.py \
             migrations/versions/0002_case_audit_ownership.py \
+            migrations/versions/0003_case_structured_evidence.py \
             tests/test_case_workflow.py \
             tests/test_case_audit.py \
-            tests/test_case_observability.py
+            tests/test_case_observability.py \
+            tests/test_case_evidence.py
 
       - name: Run case workflow contracts
         run: |
@@ -75,4 +79,5 @@ jobs:
             tests/test_case_workflow.py \
             tests/test_case_audit.py \
             tests/test_case_observability.py \
+            tests/test_case_evidence.py \
             tests/test_database.py

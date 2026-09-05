@@ -10,7 +10,8 @@ services:
     init: true
     command:
       - python
-      - scripts/run_migrations.py
+      - -m
+      - scripts.run_migrations
       - --database-url
       - sqlite:////data/netsentinel.db
     environment:

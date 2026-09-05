@@ -89,7 +89,7 @@ jobs:
           tests/test_case_evidence.py
 
       - name: Verify default database health
-        run: 'python scripts/check_database_health.py --database-url sqlite:///:memory:'
+        run: 'python -m scripts.check_database_health --database-url sqlite:///:memory:'
 
       - name: Run database backup tests
         run: python -m pytest tests/test_database_backup.py
@@ -108,8 +108,8 @@ jobs:
         env:
           DATABASE_URL: sqlite:///${{ runner.temp }}/predeployment.db
         run: |
-          python scripts/run_migrations.py
-          python scripts/check_predeployment.py
+          python -m scripts.run_migrations
+          python -m scripts.check_predeployment
 
       - name: Run configuration and container contract tests
         run: >-
@@ -183,5 +183,5 @@ jobs:
         env:
           NETSENTINEL_IMAGE_TAG: ci
         run: |
-          docker compose --profile operations run --rm --no-build migrate
-          docker compose --profile operations run --rm --no-build migrate
+          docker compose --profile operations run --rm migrate
+          docker compose --profile operations run --rm migrate

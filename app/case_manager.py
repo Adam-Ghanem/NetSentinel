@@ -1,16 +1,23 @@
 import uuid
 
+from app.case_evidence import CaseEvidenceStore
+
 
 _ALLOWED_STATUSES = frozenset({"Open", "In Progress", "Resolved", "Closed"})
 _MAX_TITLE_LENGTH = 200
 _MAX_NOTE_LENGTH = 10_000
 _MAX_OWNER_LENGTH = 128
 _MAX_ACTOR_LENGTH = 128
+_MAX_EVIDENCE_TYPE_LENGTH = 64
+_MAX_EVIDENCE_SOURCE_LENGTH = 256
+_MAX_EVIDENCE_REFERENCE_LENGTH = 512
+_MAX_EVIDENCE_SUMMARY_LENGTH = 2_000
 
 
 class CaseManager:
     def __init__(self, database_manager):
         self.db = database_manager
+        self.evidence = CaseEvidenceStore(database_manager)
 
     def create_case_from_alert(
         self,
@@ -115,11 +122,67 @@ class CaseManager:
             event_data,
         )
 
+    def add_evidence(
+        self,
+        case_id,
+        evidence_type,
+        source,
+        reference,
+        summary="",
+        actor="system",
+    ):
+        normalized_type = self._validate_bounded_text(
+            evidence_type,
+            "evidence_type",
+            _MAX_EVIDENCE_TYPE_LENGTH,
+            required=True,
+        )
+        normalized_source = self._validate_bounded_text(
+            source,
+            "source",
+            _MAX_EVIDENCE_SOURCE_LENGTH,
+            required=True,
+        )
+        normalized_reference = self._validate_bounded_text(
+            reference,
+            "reference",
+            _MAX_EVIDENCE_REFERENCE_LENGTH,
+            required=True,
+        )
+        normalized_summary = self._validate_bounded_text(
+            summary,
+            "summary",
+            _MAX_EVIDENCE_SUMMARY_LENGTH,
+            required=False,
+        )
+        normalized_actor = self._validate_actor(actor)
+        evidence_id = self.evidence.new_evidence_id()
+        evidence_data = {
+            "evidence_id": evidence_id,
+            "case_id": case_id,
+            "evidence_type": normalized_type,
+            "source": normalized_source,
+            "reference": normalized_reference,
+            "summary": normalized_summary,
+            "added_by": normalized_actor,
+        }
+        event_data = self._event(
+            case_id,
+            "case.evidence_added",
+            normalized_actor,
+            "",
+            f"evidence_id={evidence_id};type={normalized_type}",
+        )
+        return self.evidence.add(case_id, evidence_data, event_data)
+
     def get_case(self, case_id):
         return self.db.get_case(case_id)
 
     def get_case_history(self, case_id, limit=500):
         return self.db.get_case_history(case_id, limit=limit)
+
+    def get_case_evidence(self, case_id, limit=500):
+        return self.evidence.list_for_case(case_id, limit=limit)
 
     def get_all_cases(self):
         return self.db.get_all_cases()
@@ -138,6 +201,15 @@ class CaseManager:
             raise ValueError("actor must not be empty")
         if len(normalized) > _MAX_ACTOR_LENGTH:
             raise ValueError(f"actor must be at most {_MAX_ACTOR_LENGTH} characters")
+        return normalized
+
+    @staticmethod
+    def _validate_bounded_text(value, field, max_length, required):
+        normalized = str(value or "").strip()
+        if required and not normalized:
+            raise ValueError(f"{field} must not be empty")
+        if len(normalized) > max_length:
+            raise ValueError(f"{field} must be at most {max_length} characters")
         return normalized
 
     @staticmethod

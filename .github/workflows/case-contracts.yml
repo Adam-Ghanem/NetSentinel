@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "app/case_manager.py"
+      - "app/case_evidence.py"
       - "app/database.py"
       - "migrations/versions/*.py"
       - "tests/test_case_workflow.py"
@@ -16,6 +17,7 @@ on:
     branches: [main]
     paths:
       - "app/case_manager.py"
+      - "app/case_evidence.py"
       - "app/database.py"
       - "migrations/versions/*.py"
       - "tests/test_case_workflow.py"
@@ -65,6 +67,7 @@ jobs:
         run: |
           python -m ruff check \
             app/case_manager.py \
+            app/case_evidence.py \
             app/database.py \
             migrations/versions/0002_case_audit_ownership.py \
             migrations/versions/0003_case_structured_evidence.py \

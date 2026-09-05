@@ -76,9 +76,10 @@ jobs:
           tests/test_migrations.py tests/test_parser.py tests/test_port_scan_detector.py
           tests/test_port_scan_integration.py tests/test_port_scan_policy.py
           tests/test_predeployment.py tests/test_report_generator.py
-          tests/test_rules_engine_contracts.py tests/test_schema_version.py
-          tests/test_secret_scanner.py tests/test_stateful_detection_integration.py
-          tests/test_syn_flood_detector.py tests/test_syn_flood_policy.py
+          tests/test_rule_readiness.py tests/test_rules_engine_contracts.py
+          tests/test_schema_version.py tests/test_secret_scanner.py
+          tests/test_stateful_detection_integration.py tests/test_syn_flood_detector.py
+          tests/test_syn_flood_policy.py
 
       - name: Run database and incident workflow tests
         run: >-
@@ -133,6 +134,7 @@ jobs:
           tests/test_port_scan_detector.py
           tests/test_port_scan_integration.py
           tests/test_port_scan_policy.py
+          tests/test_rule_readiness.py
           tests/test_rules_engine_contracts.py
           tests/test_stateful_detection_integration.py
           tests/test_syn_flood_detector.py

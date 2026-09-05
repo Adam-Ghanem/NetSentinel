@@ -53,7 +53,7 @@ def test_migration_job_is_explicit_and_least_privilege():
     migration = load_compose()["services"]["migrate"]
 
     assert migration["profiles"] == ["operations"]
-    assert migration["command"][:2] == ["python", "scripts/run_migrations.py"]
+    assert migration["command"][:3] == ["python", "-m", "scripts.run_migrations"]
     assert migration["restart"] == "no"
     assert migration["read_only"] is True
     assert migration["cap_drop"] == ["ALL"]

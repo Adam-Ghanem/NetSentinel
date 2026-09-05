@@ -1,28 +1,10 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
-
-from app.database import Base, CaseAuditEventModel, CaseModel, _utcnow_naive
-
-_MAX_EVIDENCE_TYPE_LENGTH = 64
-_MAX_SOURCE_LENGTH = 256
-_MAX_REFERENCE_LENGTH = 512
-_MAX_SUMMARY_LENGTH = 2_000
-_MAX_ACTOR_LENGTH = 128
-
-
-class CaseEvidenceModel(Base):
-    __tablename__ = "case_evidence"
-
-    id = Column(Integer, primary_key=True)
-    evidence_id = Column(String, unique=True, nullable=False)
-    case_id = Column(String, ForeignKey("cases.case_id"), nullable=False, index=True)
-    evidence_type = Column(String(_MAX_EVIDENCE_TYPE_LENGTH), nullable=False, index=True)
-    source = Column(String(_MAX_SOURCE_LENGTH), nullable=False)
-    reference = Column(String(_MAX_REFERENCE_LENGTH), nullable=False)
-    summary = Column(Text, nullable=False, default="")
-    added_by = Column(String(_MAX_ACTOR_LENGTH), nullable=False, index=True)
-    created_at = Column(DateTime, default=_utcnow_naive, nullable=False, index=True)
+from app.database import (
+    CaseAuditEventModel,
+    CaseEvidenceModel,
+    CaseModel,
+)
 
 
 class CaseEvidenceStore:

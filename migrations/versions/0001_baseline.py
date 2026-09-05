@@ -92,7 +92,12 @@ def upgrade():
     op.create_table(
         "netsentinel_schema",
         sa.Column("version", sa.Integer(), nullable=False),
-        sa.Column("applied_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False),
+        sa.Column(
+            "applied_at",
+            sa.DateTime(),
+            server_default=sa.func.current_timestamp(),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("version"),
     )
     op.execute("INSERT INTO netsentinel_schema (version) VALUES (1)")

@@ -43,7 +43,10 @@ def run_migrations(database_url: str, *, revision: str = "head") -> MigrationRun
             status="failed",
             migrated=False,
             ready=False,
-            detail="Migration execution failed. Review migration logs and restore from backup if needed.",
+            detail=(
+                "Migration execution failed. Review migration logs and restore "
+                "from backup if needed."
+            ),
         )
 
     readiness = check_database_readiness(database_url)

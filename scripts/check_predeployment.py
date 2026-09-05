@@ -5,8 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, is_dataclass
-from typing import Any, Callable
+from typing import Any
 
 from app.config import Config
 from scripts.check_database_readiness import check_database_readiness

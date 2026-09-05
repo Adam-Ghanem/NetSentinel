@@ -16,7 +16,7 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 7. **Stateful detection engine** — delivered foundation: bounded duplicate suppression, validated per-rule cooldowns, deterministic event expiry, explicit event/value cardinality limits, unique-destination-port scanning, per-service TCP SYN-flood evaluation, periodic TCP beaconing evaluation, immutable detector policies, and sanitized aggregate detector-pressure snapshots. Remaining work: measured policy tuning, additional stateful behaviors only where evidence justifies them, and a reviewed configuration/allowlisting boundary.
 8. **Detection engineering content** — in progress: scan, SYN-flood, and beaconing decisions now document severity, MITRE mappings, safety bounds, limitations, and false-positive guidance. Remaining work: realistic sample traffic and broader rule-authoring guidance.
 9. **Alert enrichment** — normalized IOC context, cache expiry, provider failure handling, confidence fields, and evidence provenance.
-10. **Incident workflow** — delivered ownership/audit foundation: transactional alert-to-case linking, direct case lookup, reviewed status transitions, immutable case/alert identity boundaries, bounded append-only analyst notes, bounded analyst ownership, transactional immutable audit events, no-op suppression, and aggregate privacy-preserving workflow metrics. Remaining work: structured evidence, authorization, dashboard alert-to-case actions, investigation queue filters, and broader integration tests.
+10. **Incident workflow** — delivered evidence foundation: transactional alert-to-case linking, direct case lookup, reviewed status transitions, immutable case/alert identity boundaries, bounded append-only analyst notes, bounded analyst ownership, transactional immutable audit events, no-op suppression, aggregate privacy-preserving workflow metrics, and bounded append-only structured investigation evidence with audit-safe references. Remaining work: authorization, dashboard alert-to-case actions, investigation queue filters, evidence lifecycle governance, and broader integration tests.
 
 ## P2 — API, Observability, and Performance
 
@@ -36,7 +36,7 @@ This roadmap prioritizes small, reviewable changes that move NetSentinel from an
 
 ## Current Focus
 
-The current detection foundation validates packet/rule boundaries, bounds duplicate suppression and sliding-window state, evaluates unique-port scans, TCP SYN floods, and periodic TCP beaconing, and exposes privacy-preserving process-local pressure metrics. Incident handling now includes owner assignment and transactional audit evidence; the next case-management work should add structured evidence and authorization before exposing richer dashboard mutation controls.
+The current detection foundation validates packet/rule boundaries, bounds duplicate suppression and sliding-window state, evaluates unique-port scans, TCP SYN floods, and periodic TCP beaconing, and exposes privacy-preserving process-local pressure metrics. Incident handling now includes ownership, transactional audit evidence, and bounded append-only structured evidence; authorization should be established before richer dashboard mutation controls are exposed.
 
 ## Contributor Quick Check
 
